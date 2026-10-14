@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}Patient Portal — AI Clinical Intake{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6">
+
+  <!-- Header Banner -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-emerald-900/15 shadow-xs">
+    <div>
+      <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-700 bg-emerald-100/60 px-3 py-1 rounded-full w-fit mb-2 border border-emerald-200">
+        <i data-lucide="heart-pulse" class="w-3.5 h-3.5"></i>
+        <span>Ayurvedic Patient Intake Kiosk</span>
+      </div>
+      <h1 class="text-2xl font-bold text-slate-900 tracking-tight">
+        Patient Consultation Portal
+      </h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Consult with Dr. Ayurveda, share your symptoms, and send a structured clinical report to your doctor.
+      </p>
+    </div>
+
+    <!-- Stepper Indicator -->
+    <div class="flex items-center gap-2 text-xs">
+      <div id="step-pill-1" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold bg-emerald-700 text-white shadow-xs">
+        <span class="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">1</span>
+        <span>Details</span>
+      </div>
+      <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-300"></i>
+      <div id="step-pill-2" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-slate-500">
+        <span class="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center text-[10px]">2</span>
+        <span>AI Consultation</span>
+      </div>
+      <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-300"></i>
+      <div id="step-pill-3" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-slate-500">
+        <span class="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center text-[10px]">3</span>
+        <span>Sent to Doctor</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== STEP 1: PATIENT DETAILS & QUICK SYMPTOMS ==================== -->
+  <div id="portal-step-1" class="space-y-6">
+    <div class="bg-white rounded-2xl border border-emerald-900/15 p-6 shadow-xs space-y-6">
+      <div>
+        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <i data-lucide="user" class="w-5 h-5 text-emerald-600"></i>
+          Your Contact & Identification
+        </h2>
+        <p class="text-xs text-slate-500 mt-1">
+          This connects your consultation report to your medical record for the doctor.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            Full Name <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            id="patient-name-input"
+            required
+            placeholder="e.g., Rajesh Sharma"
+            class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            Mobile Number <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="tel"
+            id="patient-phone-input"
+            required
+            placeholder="e.g., +91 98765 43210"
+            class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            ABHA ID (Health ID) <span class="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            id="patient-abha-input"
+            placeholder="e.g., 91-1234-5678-9012"
+            class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            Age & Gender <span class="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              id="patient-age-input"
+              min="1"
+              max="120"
+              placeholder="Age"
+              class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+            />
+            <select
+              id="patient-gender-input"
+              class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+            >
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Symptoms Selector -->
+      <div class="pt-4 border-t border-emerald-900/5 space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            Select Your Main Symptoms
+          </label>
+          <p class="text-xs text-slate-500">
+            Click all that apply. You can discuss details with Dr. Ayurveda in the next step.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap gap-2" id="symptom-chips-container">
+          <button type="button" class="symptom-chip px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 text-xs text-slate-700 font-medium transition" data-symptom="Fever">Fever (Jwara)</button>
+          <button type="button" class="symptom-chip px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 text-xs text-slate-700 font-medium transition" data-symptom="Cough">Cough (Kasa)</button>
+          <button type="button" class="symptom-chip px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 text-xs text-slate-700 font-medium transition" data-symptom="Acidity">Acidity (Amlapitta)</button>
+          <button type="button" class="symptom-chip px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 text-xs text-slate-700 font-medium transition" data-symptom="Joint Pain">Joint Pain (Sandhivata)</button>
+          <button type="button" class="symptom-chip px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 text-xs text-slate-700 font-medium transition" data-symptom="Headache">Headache (Shirashoola)</button>
+          <button type="button" class="symptom-chip px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 text-xs text-slate-700 font-medium transition" data-symptom="Indigestion">Indigestion (Mandagni)</button>
+          <button type="button" class="symptom-chip px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 text-xs text-slate-700 font-medium transition" data-symptom="Cold & Congestion">Cold & Congestion (Pratishyaya)</button>
+          <button type="button" class="symptom-chip px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 text-xs text-slate-700 font-medium transition" data-symptom="Shortness of Breath">Shortness of Breath (Shwasa)</button>
+          <button type="button" class="symptom-chip px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 text-xs text-slate-700 font-medium transition" data-symptom="Body Ache">Body Ache (Angamarda)</button>
+          <button type="button" class="symptom-chip px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 text-xs text-slate-700 font-medium transition" data-symptom="Constipation">Constipation (Vibandha)</button>
+          <button type="button" class="symptom-chip px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 text-xs text-slate-700 font-medium transition" data-symptom="Skin Rash / Itching">Skin Rash / Itching (Kandu)</button>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            Other Symptoms or Notes <span class="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            id="patient-notes-input"
+            rows="2"
+            placeholder="Describe anything else you are feeling (e.g., started 3 days ago, worse after meals)..."
+            class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl p-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition resize-none"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button
+          type="button"
+          id="btn-goto-step-2"
+          class="bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-6 py-3 rounded-xl transition flex items-center gap-2 shadow-xs text-sm"
+        >
+          <span>Continue to AI Consultation</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== STEP 2: AI DOCTOR CONSULTATION ==================== -->
+  <div id="portal-step-2" class="space-y-4 hidden">
+    <!-- Active Patient Header Card -->
+    <div class="bg-white rounded-2xl border border-emerald-900/15 p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-100/70 border border-emerald-200 text-emerald-800 flex items-center justify-center font-bold text-sm">
+          <i data-lucide="user" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-900 text-sm" id="active-patient-name-display">Patient</h3>
+          <p class="text-xs text-slate-500" id="active-patient-symptoms-display">Symptoms: None selected</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          id="btn-back-to-step-1"
+          class="px-3.5 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5"
+        >
+          <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+          Edit Details
+        </button>
+        <button
+          type="button"
+          id="btn-finalize-and-send"
+          class="px-5 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl transition shadow-xs flex items-center gap-1.5"
+        >
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          Send Report to Doctor
+        </button>
+      </div>
+    </div>
+
+    <!-- Emergency Banner (hidden by default) -->
+    <div id="portal-emergency-banner" class="hidden bg-red-600 text-white p-4 rounded-2xl shadow-sm flex items-start gap-3 animate-pulse">
+      <i data-lucide="alert-triangle" class="w-5 h-5 shrink-0 mt-0.5"></i>
+      <div>
+        <p class="font-bold text-sm">EMERGENCY SYMPTOM DETECTED</p>
+        <p class="text-xs text-red-100 mt-0.5">
+          Your symptoms indicate a potential medical emergency. Please alert clinic reception immediately or proceed to the nearest emergency room.
+        </p>
+      </div>
+    </div>
+
+    <!-- AI Consultation Chat Box -->
+    <div class="bg-white rounded-2xl border border-emerald-900/15 shadow-xs overflow-hidden flex flex-col h-[600px]">
+      <!-- Chat Header -->
+      <div class="bg-gradient-to-r from-emerald-50 to-emerald-100/50 border-b border-emerald-200/60 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs">
+            <i data-lucide="bot" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="font-bold text-slate-900 text-sm">Dr. Ayurveda — Clinical AI Intake Assistant</h2>
+            <p class="text-xs text-emerald-800 font-medium">Ayurvedic & General Symptom Assessment</p>
+          </div>
+        </div>
+        <span class="text-[11px] font-medium text-emerald-700 bg-emerald-100/80 px-2.5 py-1 rounded-full border border-emerald-200">
+          Live Consultation
+        </span>
+      </div>
+
+      <!-- Chat Messages Container -->
+      <div id="portal-chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4 bg-[#f6f9f6]">
+        <!-- Welcome message from Dr. Ayurveda -->
+        <div class="flex justify-start">
+          <div class="max-w-md lg:max-w-xl px-4 py-3 rounded-2xl text-sm bg-white border border-emerald-900/15 text-slate-800 shadow-xs leading-relaxed space-y-2">
+            <p class="font-semibold text-emerald-800 text-xs flex items-center gap-1.5">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+              Namaste! I am Dr. Ayurveda.
+            </p>
+            <p>
+              I am here to understand what you are going through before you meet the treating physician. 
+              Please describe your symptoms, how long you've had them, your appetite, and how you are feeling overall.
+            </p>
+            <p class="text-xs text-slate-500 pt-1 border-t border-slate-100">
+              When we finish, I will prepare a complete structured clinical report and send it directly to your doctor.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Input Area -->
+      <form id="portal-chat-form" class="p-4 bg-white border-t border-emerald-900/10 flex gap-2">
+        <input
+          type="text"
+          id="portal-chat-input"
+          placeholder="Type your symptoms or answer Dr. Ayurveda's questions..."
+          class="flex-1 bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+          autocomplete="off"
+          required
+        />
+        <button
+          type="submit"
+          id="portal-chat-send-btn"
+          class="bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-5 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs shrink-0"
+        >
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          <span>Send</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Bottom Action Card -->
+    <div class="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2 text-emerald-900">
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+        <span>Done chatting? Click below to finalize your report and transmit it to the doctor's review queue.</span>
+      </div>
+      <button
+        type="button"
+        id="btn-finalize-and-send-bottom"
+        class="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-5 py-2.5 rounded-xl transition shadow-xs flex items-center justify-center gap-2 shrink-0"
+      >
+        <i data-lucide="file-check" class="w-4 h-4"></i>
+        <span>Send Report to Doctor</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== STEP 3: SUBMISSION SUCCESS & RECEIPT ==================== -->
+  <div id="portal-step-3" class="space-y-6 hidden">
+    <div class="bg-white rounded-2xl border border-emerald-900/15 p-8 shadow-xs text-center space-y-6">
+      <div class="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto border border-emerald-200 shadow-xs">
+        <i data-lucide="check" class="w-8 h-8"></i>
+      </div>
+
+      <div>
+        <span class="text-xs font-semibold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+          Report Delivered
+        </span>
+        <h2 class="text-2xl font-bold text-slate-900 tracking-tight mt-3">
+          Your Report Has Been Sent to the Doctor!
+        </h2>
+        <p class="text-sm text-slate-500 mt-1 max-w-lg mx-auto">
+          Thank you for completing your clinical intake. The treating physician now has your AI intake assessment and transcript.
+        </p>
+      </div>
+
+      <!-- Confirmation Card -->
+      <div class="bg-[#f6f9f6] border border-emerald-900/10 rounded-2xl p-6 max-w-lg mx-auto text-left space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-emerald-900/10">
+          <div>
+            <p class="text-xs text-slate-400 font-medium">Intake ID</p>
+            <p class="font-mono font-bold text-slate-800 text-sm" id="receipt-intake-id">—</p>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 font-medium text-right">Triage Priority</p>
+            <span id="receipt-priority-badge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Routine
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <p class="text-xs text-slate-400 font-medium">Patient</p>
+          <p class="font-semibold text-slate-800 text-sm" id="receipt-patient-name">—</p>
+        </div>
+
+        <div>
+          <p class="text-xs text-slate-400 font-medium">Clinical Assessment Summary</p>
+          <p class="text-xs text-slate-700 leading-relaxed mt-1" id="receipt-summary-text">—</p>
+        </div>
+
+        <div class="pt-2 border-t border-emerald-900/10 text-xs text-slate-500 flex items-center justify-between">
+          <span>Status: Sent to Doctor Queue</span>
+          <span class="text-emerald-700 font-medium flex items-center gap-1">
+            <i data-lucide="radio" class="w-3.5 h-3.5 animate-pulse"></i> Ready for Review
+          </span>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+        <a
+          href="/patient-dashboard"
+          class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-medium text-xs transition shadow-xs flex items-center gap-1.5"
+        >
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          <span>View on Doctor Review Dashboard</span>
+        </a>
+        <button
+          type="button"
+          id="btn-new-consultation"
+          class="px-5 py-2.5 bg-white border border-emerald-900/15 hover:bg-emerald-50 text-slate-700 rounded-xl font-medium text-xs transition flex items-center gap-1.5"
+        >
+          <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+          <span>New Patient Intake</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/patient_portal.js"></script>
+{% endblock %}

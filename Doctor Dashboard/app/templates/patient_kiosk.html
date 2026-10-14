@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}MediKiosk Patient Queue - Doctor Portal{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-emerald-900/15 shadow-sm">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="stethoscope" class="w-7 h-7 text-emerald-600"></i>
+                MediKiosk Doctor Feed
+            </h1>
+            <p class="text-slate-500 text-sm mt-1">
+                Real-time patient self-intakes, AI symptom triaging, and verified ABHA health records.
+            </p>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <div class="bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-center">
+                <span class="text-xs text-emerald-600 font-semibold uppercase tracking-wider block">Total Queue</span>
+                <span class="text-lg font-bold text-emerald-800" id="total-count">{{ intakes|length if intakes else 0 }}</span>
+            </div>
+            <div class="bg-red-50 border border-red-200 px-4 py-2 rounded-xl text-center">
+                <span class="text-xs text-red-600 font-semibold uppercase tracking-wider block">High Priority</span>
+                <span class="text-lg font-bold text-red-700" id="emergency-count">
+                    {% if intakes %}
+                        {{ intakes | selectattr('is_emergency', 'equalto', true) | list | length }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- ==================== LEFT SIDE: PATIENT INTAKES LIST ==================== -->
+        <div class="lg:col-span-4 bg-white rounded-2xl shadow-sm border border-emerald-900/15 p-4 space-y-4">
+            
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h2 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i data-lucide="users" class="w-4 h-4 text-emerald-600"></i>
+                    Patient Queue
+                </h2>
+                <span class="text-xs font-medium text-slate-400">Select to review</span>
+            </div>
+
+            <div class="space-y-2">
+                <div class="relative">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+                    <input type="text" id="patient-search" onkeyup="filterPatientList()" placeholder="Search ABHA or symptom..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50">
+                </div>
+                
+                <div class="flex items-center gap-1.5 pt-1">
+                    <button onclick="filterCategory('all')" id="btn-filter-all" class="px-3 py-1 bg-slate-900 text-white rounded-lg text-xs font-medium transition-colors">All</button>
+                    <button onclick="filterCategory('emergency')" id="btn-filter-emergency" class="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-200 transition-colors">Emergency</button>
+                    <button onclick="filterCategory('routine')" id="btn-filter-routine" class="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-200 transition-colors">Routine</button>
+                </div>
+            </div>
+
+            <div class="space-y-2 max-h-[600px] overflow-y-auto pr-1" id="patient-list-container">
+                {% if intakes and intakes|length > 0 %}
+                    {% for item in intakes %}
+                    <div 
+                        onclick="selectPatient('{{ item.id }}')"
+                        id="patient-card-{{ item.id }}"
+                        data-emergency="{{ 'true' if item.is_emergency else 'false' }}"
+                        data-search="{{ item.abha_id | lower }} {{ item.patients.full_name | lower if item.patients else '' }} {{ item.full_name | lower if item.full_name else '' }} {{ (item.symptoms | join(' ') if item.symptoms is iterable and item.symptoms is not string else (item.symptoms or '')) | lower }} {{ (item.symptom_pills | join(' ') if item.symptom_pills else '') | lower }} {{ (item.voice_transcript or '') | lower }} {{ (item.extracted_medical_summary or '') | lower }}"
+                        class="patient-card cursor-pointer p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 transition-all bg-white hover:shadow-sm relative {% if loop.first %}border-emerald-500 ring-2 ring-emerald-500/10 bg-emerald-50/20{% endif %}"
+                    >
+                        {% if item.is_emergency %}
+                        <span class="absolute top-3 right-3 flex h-2.5 w-2.5">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                        </span>
+                        {% endif %}
+
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                                    {{ item.patients.full_name if item.patients and item.patients.full_name else ('Patient #' ~ item.abha_id[-4:]) }}
+                                </h3>
+                                <p class="text-xs text-slate-500 font-mono mt-0.5">ABHA: {{ item.abha_id }}</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-2.5 flex flex-wrap gap-1">
+                            {% if item.is_emergency %}
+                                <span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-md border border-red-200">High Priority</span>
+                            {% endif %}
+                            {% for sym in item.symptoms[:2] %}
+                                <span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-md">{{ sym }}</span>
+                            {% endfor %}
+                            {% if item.symptoms|length > 2 %}
+                                <span class="text-[10px] text-slate-400 px-1">+{{ item.symptoms|length - 2 }} more</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="mt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-100 pt-2">
+                            <span><i data-lucide="clock" class="w-3 h-3 inline mr-1"></i>{{ item.created_at[:16] if item.created_at else 'Just now' }}</span>
+                            <span class="text-emerald-600 font-medium">View intake &rarr;</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl">
+                        <i data-lucide="inbox" class="w-8 h-8 mx-auto text-slate-300 mb-2"></i>
+                        <p class="text-sm font-medium text-slate-500">No patient intakes queued</p>
+                        <p class="text-xs text-slate-400 mt-1">New MediKiosk check-ins will appear here.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- ==================== RIGHT SIDE: DETAILED PATIENT REVIEW ==================== -->
+        <div class="lg:col-span-8 space-y-6">
+            
+            {% if intakes and intakes|length > 0 %}
+                {% for item in intakes %}
+                <div id="patient-detail-{{ item.id }}" class="patient-detail-panel bg-white rounded-2xl shadow-sm border border-emerald-900/15 p-6 space-y-6 {% if not loop.first %}hidden{% endif %}">
+                    
+                    <!-- Header Section -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-xl font-bold text-slate-900">
+                                    {{ item.patients.full_name if item.patients and item.patients.full_name else ('Patient ' ~ item.abha_id[-4:]) }}
+                                </h2>
+                                {% if item.is_emergency %}
+                                <span class="bg-red-100 text-red-700 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1 border border-red-200">
+                                    <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> High Priority Triage
+                                </span>
+                                {% endif %}
+                            </div>
+                            <p class="text-sm text-slate-500 mt-1">
+                                ABHA ID: <span class="font-mono text-slate-700 font-semibold">{{ item.abha_id }}</span> 
+                                <span class="mx-2 text-slate-300">|</span> 
+                                FHIR Interoperability: <span class="text-emerald-600 font-semibold">Verified Sync</span>
+                            </p>
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                            <a href="/patients/{{ item.patient_id }}/fhir" target="_blank" class="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-medium hover:bg-emerald-100 flex items-center gap-2 transition-colors">
+                                <i data-lucide="download" class="w-4 h-4"></i> FHIR Bundle
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Symptoms & AI Clinical Assessment Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                    <i data-lucide="activity" class="w-4 h-4 text-emerald-600"></i>
+                                    Reported Symptoms
+                                </h3>
+                                <div class="flex flex-wrap gap-2">
+                                    {% if item.symptoms %}
+                                        {% for symptom in item.symptoms %}
+                                        <span class="px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium border border-slate-200 flex items-center gap-1.5">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                            {{ symptom }}
+                                        </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-sm text-slate-400 italic">No quick symptoms selected.</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {% if item.extracted_medical_summary %}
+                            <div>
+                                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                    <i data-lucide="sparkles" class="w-4 h-4 text-emerald-600"></i>
+                                    AI Clinical Assessment
+                                </h3>
+                                <div class="bg-emerald-50/60 p-4 rounded-xl border border-emerald-200/60 text-sm text-slate-800 leading-relaxed">
+                                    {{ item.extracted_medical_summary }}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                <i data-lucide="mic" class="w-4 h-4 text-emerald-600"></i>
+                                Voice Intake Transcript
+                            </h3>
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm text-slate-700 leading-relaxed min-h-[140px] italic">
+                                {% if item.voice_transcript %}
+                                    "{{ item.voice_transcript }}"
+                                {% else %}
+                                    <span class="not-italic text-slate-400">No voice transcript recorded during self-intake.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {% if item.ai_followup_questions %}
+                    <div class="border-t border-slate-100 pt-4">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <i data-lucide="help-circle" class="w-4 h-4 text-emerald-600"></i>
+                            Suggested Clinical Follow-up Questions
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {% for q in item.ai_followup_questions %}
+                            <div class="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700">
+                                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5"></i>
+                                <span>{{ q }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Uploaded Records / Prescriptions -->
+                    <div class="border-t border-slate-100 pt-4">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <i data-lucide="paperclip" class="w-4 h-4 text-emerald-600"></i>
+                            Uploaded Records & Documents
+                        </h3>
+                        <div class="flex flex-wrap gap-3">
+                            {% if item.documents %}
+                                {% for doc in item.documents %}
+                                <div class="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-700 hover:border-emerald-500 transition-colors bg-white shadow-sm">
+                                    <i data-lucide="file-text" class="w-4 h-4 text-emerald-600"></i>
+                                    <span class="font-medium">{{ doc }}</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-sm text-slate-400 italic">No legacy documents uploaded by patient.</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Action Bar -->
+                    <div class="border-t border-slate-100 pt-4 flex justify-end gap-3">
+                        <a href="/consultation?patient_id={{ item.patient_id }}" class="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-medium text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2">
+                            <i data-lucide="play-circle" class="w-4 h-4"></i> Begin Consultation
+                        </a>
+                    </div>
+
+                </div>
+                {% endfor %}
+            {% else %}
+                <!-- Empty Details State -->
+                <div class="bg-white rounded-2xl shadow-sm border border-emerald-900/15 p-12 text-center">
+                    <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                        <i data-lucide="clipboard-check" class="w-8 h-8"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-1">No Active Intakes</h3>
+                    <p class="text-slate-500 text-sm max-w-md mx-auto">When patients complete the MediKiosk self-checkin, their intake cards and AI triages will populate here immediately.</p>
+                </div>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        lucide.createIcons();
+    });
+
+    function selectPatient(intakeId) {
+        // Hide all detail panels
+        document.querySelectorAll('.patient-detail-panel').forEach(panel => {
+            panel.classList.add('hidden');
+        });
+
+        // Reset styling for all patient cards
+        document.querySelectorAll('.patient-card').forEach(card => {
+            card.classList.remove('border-emerald-500', 'ring-2', 'ring-emerald-500/10', 'bg-emerald-50/20');
+        });
+
+        // Show selected panel
+        const activePanel = document.getElementById(`patient-detail-${intakeId}`);
+        if (activePanel) {
+            activePanel.classList.remove('hidden');
+        }
+
+        // Highlight selected card
+        const activeCard = document.getElementById(`patient-card-${intakeId}`);
+        if (activeCard) {
+            activeCard.classList.add('border-emerald-500', 'ring-2', 'ring-emerald-500/10', 'bg-emerald-50/20');
+        }
+    }
+
+    const KIOSK_SYMPTOM_SYNONYMS = {
+        fever: ["jwara", "jwar", "pyrexia", "bukhar", "taap", "temperature", "santapa"],
+        cough: ["kasa", "kaas", "khasi", "coughing", "dry cough"],
+        cold: ["pratishyaya", "sardi", "zukham", "rhinitis", "coryza", "runny nose"],
+        headache: ["shirashoola", "shirahshoola", "sir dard", "sirdard", "migraine"],
+        "joint pain": ["sandhivata", "sandhishoola", "arthritis", "osteoarthritis", "jodo ka dard", "joint stiffness"],
+        acidity: ["amlapitta", "amla pitta", "hyperacidity", "acid reflux", "heartburn", "pitta"],
+        indigestion: ["mandagni", "agnimandya", "ajirna", "badhazmi", "weak digestion"],
+        asthma: ["tamaka shwasa", "shwasa", "swas", "dama"],
+        breathlessness: ["shwasa", "shwas", "dyspnea", "shortness of breath", "saans phulna"],
+        "chest pain": ["hridshoola", "hrid shoola", "hridroga", "sineme dard", "angina"],
+        "stomach pain": ["udarashoola", "udara shoola", "shoola", "pet dard", "abdominal pain"],
+        diarrhea: ["atisara", "atisar", "dast", "loose motions", "loose stools"],
+        vomiting: ["chardi", "chhardi", "vaman", "ulti"],
+        constipation: ["vibandha", "malabaddhata", "kabz"],
+        itching: ["kandu", "khujli", "pruritus"],
+        diabetes: ["prameha", "madhumeha", "sugar"],
+        "back pain": ["katishoola", "kati shoola", "kamar dard", "backache"],
+        weakness: ["daurbalya", "kamzori", "fatigue"]
+    };
+
+    function expandKioskSearchTerms(raw) {
+        const terms = new Set([raw]);
+        raw.split(/\s+/).forEach(w => { if (w.length >= 2) terms.add(w); });
+        for (const [eng, syns] of Object.entries(KIOSK_SYMPTOM_SYNONYMS)) {
+            const all = [eng, ...syns];
+            if (Array.from(terms).some(t => all.some(r => r.includes(t) || t.includes(r)))) {
+                all.forEach(x => terms.add(x));
+            }
+        }
+        return Array.from(terms);
+    }
+
+    function filterPatientList() {
+        const query = document.getElementById('patient-search').value.toLowerCase().trim();
+        const expanded = expandKioskSearchTerms(query);
+        document.querySelectorAll('.patient-card').forEach(card => {
+            const searchData = (card.getAttribute('data-search') || '').toLowerCase();
+            if (!query || searchData.includes(query) || expanded.some(t => t.length >= 2 && searchData.includes(t))) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    function filterCategory(type) {
+        // Reset button styles
+        ['all', 'emergency', 'routine'].forEach(cat => {
+            const btn = document.getElementById(`btn-filter-${cat}`);
+            if (btn) {
+                btn.className = "px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-200 transition-colors";
+            }
+        });
+
+        const activeBtn = document.getElementById(`btn-filter-${type}`);
+        if (activeBtn) {
+            activeBtn.className = "px-3 py-1 bg-slate-900 text-white rounded-lg text-xs font-medium transition-colors";
+        }
+
+        document.querySelectorAll('.patient-card').forEach(card => {
+            const isEmergency = card.getAttribute('data-emergency') === 'true';
+            if (type === 'all') {
+                card.style.display = 'block';
+            } else if (type === 'emergency') {
+                card.style.display = isEmergency ? 'block' : 'none';
+            } else if (type === 'routine') {
+                card.style.display = !isEmergency ? 'block' : 'none';
+            }
+        });
+    }
+</script>
+{% endblock %}

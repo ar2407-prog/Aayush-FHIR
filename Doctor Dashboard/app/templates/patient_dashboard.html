@@ -1,0 +1,459 @@
+{% extends "base.html" %} {% block title %}Patient Reports - AAyushFHIR{% endblock %}
+{% block content %}
+
+{# ---------- shared macros ---------- #}
+{% macro priority_badge(p) %}
+  {% if p == "high" %}
+  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-red-50 text-red-800 border border-red-200"><i data-lucide="alert-triangle" class="w-3 h-3"></i>High</span>
+  {% elif p == "moderate" %}
+  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200"><i data-lucide="alert-circle" class="w-3 h-3"></i>Moderate</span>
+  {% elif p == "routine" %}
+  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"><i data-lucide="shield-check" class="w-3 h-3"></i>Routine</span>
+  {% else %}
+  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-50 text-slate-500 border border-slate-200">No report</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro bullet_list(items, dot="bg-emerald-500", text="text-slate-700") %}
+  <ul class="space-y-2">
+    {% for item in items %}
+    <li class="flex gap-3 text-sm {{ text }}"><span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full {{ dot }}"></span><span>{{ item }}</span></li>
+    {% endfor %}
+  </ul>
+{% endmacro %}
+
+{% macro info_cell(label, value, mono=false) %}
+  <div class="rounded-xl bg-[#f6f9f6] border border-emerald-900/10 px-3 py-2">
+    <p class="text-[10px] uppercase tracking-wide text-slate-400 font-medium">{{ label }}</p>
+    <p class="text-sm font-semibold text-slate-800 {% if mono %}font-mono{% endif %}">{{ value if value else "—" }}</p>
+  </div>
+{% endmacro %}
+
+{% if step == "list" %}
+<!-- ============= PATIENT LIST VIEW ============= -->
+<div class="space-y-6">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-700 bg-emerald-100/60 px-3 py-1 rounded-full w-fit mb-2 border border-emerald-200">
+        <i data-lucide="users" class="w-3.5 h-3.5"></i>
+        <span>Patient Reports</span>
+      </div>
+      <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Patients</h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Patients who chatted with the AI health assistant. Open a patient to read their full report.
+      </p>
+    </div>
+
+    {% if high_priority_count > 0 %}
+    <div class="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-2">
+      <i data-lucide="alert-circle" class="w-5 h-5 text-red-600"></i>
+      <div class="text-sm">
+        <p class="font-semibold text-red-900">{{ high_priority_count }} Urgent</p>
+        <p class="text-xs text-red-600">High-risk patients need attention</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Search & Filter Controls -->
+  <form method="get" action="/patient-dashboard" class="bg-white rounded-2xl border border-emerald-900/10 p-4 shadow-xs space-y-3">
+    <div class="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+      <div class="relative flex-1">
+        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+        <input
+          type="text" id="patient-search-input" name="q" value="{{ q or '' }}"
+          placeholder="Search by patient name, phone, condition, symptom or red flag..."
+          class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl pl-9 pr-9 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+          autocomplete="off"
+        />
+        <button type="button" id="clear-search-btn" title="Clear search"
+          class="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition {% if not q %}hidden{% endif %}">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      {% if priority_filter %}<input type="hidden" name="priority" value="{{ priority_filter }}" />{% endif %}
+      <div class="flex items-center gap-2 shrink-0">
+        <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow-xs flex items-center gap-1.5">
+          <i data-lucide="search" class="w-3.5 h-3.5"></i> Search
+        </button>
+        {% if q or priority_filter %}
+        <a href="/patient-dashboard" class="bg-[#f6f9f6] hover:bg-emerald-50 text-slate-600 text-xs font-medium px-3.5 py-2.5 rounded-xl border border-emerald-900/10 transition flex items-center gap-1">
+          <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset
+        </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-emerald-900/5 text-xs">
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <span class="text-slate-400 font-medium mr-1">Filter:</span>
+        <a href="/patient-dashboard{% if q %}?q={{ q | urlencode }}{% endif %}"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors {% if not priority_filter %} bg-emerald-700 text-white shadow-xs {% else %} bg-[#f6f9f6] border border-emerald-900/10 text-slate-600 hover:bg-emerald-50 {% endif %}">
+          All ({{ counts.all }})
+        </a>
+        <a href="/patient-dashboard?priority=high{% if q %}&q={{ q | urlencode }}{% endif %}"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 {% if priority_filter == 'high' %} bg-red-600 text-white shadow-xs {% else %} bg-white border border-red-200 text-red-700 hover:bg-red-50 {% endif %}">
+          <i data-lucide="alert-triangle" class="w-3 h-3"></i> High ({{ counts.high }})
+        </a>
+        <a href="/patient-dashboard?priority=moderate{% if q %}&q={{ q | urlencode }}{% endif %}"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors {% if priority_filter == 'moderate' %} bg-amber-500 text-white shadow-xs {% else %} bg-white border border-amber-200 text-amber-700 hover:bg-amber-50 {% endif %}">
+          Moderate ({{ counts.moderate }})
+        </a>
+        <a href="/patient-dashboard?priority=routine{% if q %}&q={{ q | urlencode }}{% endif %}"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors {% if priority_filter == 'routine' %} bg-emerald-700 text-white shadow-xs {% else %} bg-[#f6f9f6] border border-emerald-900/10 text-slate-600 hover:bg-emerald-50 {% endif %}">
+          Routine ({{ counts.routine }})
+        </a>
+      </div>
+      <div class="flex items-center gap-1.5 text-[11px] text-slate-400">
+        <span>Quick search:</span>
+        <button type="button" class="quick-symptom-tag text-emerald-700 hover:underline" data-term="fever">Fever</button><span>•</span>
+        <button type="button" class="quick-symptom-tag text-emerald-700 hover:underline" data-term="cough">Cough</button><span>•</span>
+        <button type="button" class="quick-symptom-tag text-emerald-700 hover:underline" data-term="headache">Headache</button><span>•</span>
+        <button type="button" class="quick-symptom-tag text-emerald-700 hover:underline" data-term="chest pain">Chest pain</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Patients Table -->
+  <div class="bg-white rounded-2xl border border-emerald-900/15 shadow-xs overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-[#f6f9f6] border-b border-emerald-900/10 text-left text-xs text-slate-500 font-medium">
+            <th class="px-5 py-3">Patient</th>
+            <th class="px-5 py-3">Contact</th>
+            <th class="px-5 py-3">Current concern</th>
+            <th class="px-5 py-3">Priority</th>
+            <th class="px-5 py-3">Last report</th>
+            <th class="px-5 py-3 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-emerald-900/5">
+          {% for p in patients %}
+          <tr class="patient-row hover:bg-emerald-50/40 transition-colors text-xs" data-search="{{ p.search_blob }}">
+            <td class="px-5 py-3.5">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 font-bold text-[11px]">
+                  {{ p.full_name[:2] | upper }}
+                </div>
+                <div>
+                  <p class="font-semibold text-slate-800">{{ p.full_name }}</p>
+                  <p class="text-slate-400 text-[11px]">
+                    {% set bits = [] %}
+                    {% if p.age is not none %}{% set _ = bits.append(p.age ~ " yrs") %}{% endif %}
+                    {% if p.gender %}{% set _ = bits.append(p.gender) %}{% endif %}
+                    {% if p.blood_group %}{% set _ = bits.append(p.blood_group) %}{% endif %}
+                    {{ bits | join(" · ") if bits else "No details" }}
+                  </p>
+                </div>
+              </div>
+            </td>
+            <td class="px-5 py-3.5 text-slate-600">
+              {% if p.phone %}<a href="tel:{{ p.phone }}" class="text-emerald-700 hover:underline">{{ p.phone }}</a>{% else %}—{% endif %}
+            </td>
+            <td class="px-5 py-3.5 max-w-xs">
+              {% if p.latest %}
+                {% if p.latest.red_flags %}
+                <p class="flex items-start gap-1.5 text-red-700 font-semibold">
+                  <i data-lucide="triangle-alert" class="w-3.5 h-3.5 shrink-0 mt-px"></i>
+                  <span class="truncate" title="{{ p.latest.red_flags | join('; ') }}">{{ p.latest.red_flags[0] }}</span>
+                </p>
+                {% if p.latest.red_flags | length > 1 %}<p class="text-[11px] text-red-500 ml-5">+{{ p.latest.red_flags | length - 1 }} more red flag{{ "s" if p.latest.red_flags | length > 2 }}</p>{% endif %}
+                {% elif p.latest.chief_complaint %}
+                <p class="text-slate-700 truncate" title="{{ p.latest.chief_complaint }}">{{ p.latest.chief_complaint }}</p>
+                {% else %}<span class="text-slate-400">—</span>{% endif %}
+                {% if p.latest.symptoms %}
+                <div class="flex flex-wrap gap-1 mt-1.5">
+                  {% for s in p.latest.symptoms[:3] %}
+                  <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px]">{{ s.name }}</span>
+                  {% endfor %}
+                  {% if p.latest.symptoms | length > 3 %}<span class="text-[11px] text-slate-500">+{{ p.latest.symptoms | length - 3 }} more</span>{% endif %}
+                </div>
+                {% endif %}
+              {% else %}<span class="text-slate-400">No report yet</span>{% endif %}
+            </td>
+            <td class="px-5 py-3.5">{{ priority_badge(p.priority) }}</td>
+            <td class="px-5 py-3.5 text-slate-600">
+              {{ p.last_report or "—" }}
+              {% if p.report_count > 1 %}<p class="text-[11px] text-slate-400">{{ p.report_count }} reports</p>{% endif %}
+            </td>
+            <td class="px-5 py-3.5 text-right">
+              <a href="/patient-dashboard/patient/{{ p.id }}"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-medium transition-colors shadow-xs">
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i> {{ "Review" if p.latest else "Profile" }}
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- client-side no matches state -->
+    <div id="no-search-results" class="py-12 text-center hidden">
+      <i data-lucide="search-x" class="w-8 h-8 text-slate-300 mx-auto mb-2"></i>
+      <p class="text-sm font-medium text-slate-600">No matching patients found</p>
+      <button type="button" id="reset-search-state-btn" class="mt-3 px-3 py-1.5 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition">Clear Search</button>
+    </div>
+
+    {% if not patients %}
+    <div class="py-12 text-center">
+      <i data-lucide="inbox" class="w-8 h-8 text-slate-300 mx-auto mb-2"></i>
+      <p class="text-sm font-medium text-slate-600">No patients found</p>
+      <p class="text-xs text-slate-400 mt-1">
+        {% if q or priority_filter %}No patients matched your search or filter.{% else %}Patients appear here after they sign up in the patient app.{% endif %}
+      </p>
+      {% if q or priority_filter %}
+      <a href="/patient-dashboard" class="inline-block mt-3 px-3 py-1.5 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition">Clear Search &amp; Filters</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% elif step == "detail" %}
+<!-- ============= PATIENT DETAIL + REPORT ============= -->
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+    <div>
+      <a href="/patient-dashboard" class="text-emerald-700 hover:underline text-xs font-medium flex items-center gap-1 mb-2">
+        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Patients
+      </a>
+      <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ patient.full_name }}</h1>
+      <p class="text-sm text-slate-500 mt-1">
+        {% set bits = [] %}
+        {% if patient.age is not none %}{% set _ = bits.append(patient.age ~ " years") %}{% endif %}
+        {% if patient.gender %}{% set _ = bits.append(patient.gender) %}{% endif %}
+        {% if patient.blood_group %}{% set _ = bits.append("Blood group " ~ patient.blood_group) %}{% endif %}
+        {{ bits | join(" · ") if bits else "No demographic details provided" }}
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      {% if report %}{{ priority_badge(report.priority) }}{% endif %}
+      {% if report %}
+      <button type="button" onclick="window.print()" class="px-4 py-2 bg-white border border-emerald-900/15 text-emerald-700 text-xs font-medium rounded-xl hover:bg-emerald-50 transition flex items-center gap-1.5">
+        <i data-lucide="printer" class="w-3.5 h-3.5"></i> Print
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ---- RED FLAGS: first thing the doctor sees ---- #}
+  {% if report and report.red_flags %}
+  <div class="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-xs">
+    <div class="flex items-center gap-2 mb-3">
+      <div class="w-8 h-8 rounded-lg bg-red-100 border border-red-200 flex items-center justify-center"><i data-lucide="triangle-alert" class="w-4 h-4 text-red-600"></i></div>
+      <div>
+        <p class="font-bold text-red-900 text-sm">Red flags — current problems</p>
+        <p class="text-xs text-red-600">Most urgent first · reported in the patient's latest chat</p>
+      </div>
+    </div>
+    {{ bullet_list(report.red_flags, dot="bg-red-500", text="text-red-900 font-medium") }}
+  </div>
+  {% endif %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- ============ LEFT: patient info ============ -->
+    <div class="lg:col-span-4 space-y-4">
+      <div class="bg-white rounded-2xl border border-emerald-900/15 p-5 shadow-xs space-y-4">
+        <h2 class="font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="user" class="w-4 h-4 text-emerald-600"></i> Patient Info</h2>
+        <div class="grid grid-cols-2 gap-2">
+          {{ info_cell("Age", (patient.age ~ " yrs") if patient.age is not none else None) }}
+          {{ info_cell("Gender", patient.gender) }}
+          {{ info_cell("Blood group", patient.blood_group) }}
+          {{ info_cell("Date of birth", patient.date_of_birth) }}
+          {{ info_cell("Height", (patient.height_cm ~ " cm") if patient.height_cm else None) }}
+          {{ info_cell("Weight", (patient.weight_kg ~ " kg") if patient.weight_kg else None) }}
+          {% if patient.bmi %}{{ info_cell("BMI", patient.bmi) }}{% endif %}
+        </div>
+        {% if patient.phone %}
+        <a href="tel:{{ patient.phone }}" class="flex items-center gap-2 text-sm text-emerald-700 hover:underline"><i data-lucide="phone" class="w-4 h-4"></i>{{ patient.phone }}</a>
+        {% endif %}
+      </div>
+
+      <div class="bg-white rounded-2xl border border-emerald-900/15 p-5 shadow-xs space-y-4">
+        <h2 class="font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="clipboard-list" class="w-4 h-4 text-emerald-600"></i> Medical Background</h2>
+        <div>
+          <p class="text-xs text-slate-500 font-medium mb-1 flex items-center gap-1"><i data-lucide="shield-alert" class="w-3.5 h-3.5 text-amber-500"></i>Allergies</p>
+          {% if patient.allergies %}
+          <p class="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{{ patient.allergies }}</p>
+          {% else %}<p class="text-sm text-slate-400">None recorded</p>{% endif %}
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 font-medium mb-1 flex items-center gap-1"><i data-lucide="stethoscope" class="w-3.5 h-3.5 text-emerald-600"></i>Existing conditions</p>
+          {% if patient.conditions %}<p class="text-sm text-slate-800 bg-[#f6f9f6] border border-emerald-900/10 rounded-lg px-3 py-2">{{ patient.conditions }}</p>
+          {% else %}<p class="text-sm text-slate-400">None recorded</p>{% endif %}
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 font-medium mb-1 flex items-center gap-1"><i data-lucide="pill" class="w-3.5 h-3.5 text-emerald-600"></i>Current medications</p>
+          {% if patient.medications %}<p class="text-sm text-slate-800 bg-[#f6f9f6] border border-emerald-900/10 rounded-lg px-3 py-2">{{ patient.medications }}</p>
+          {% else %}<p class="text-sm text-slate-400">None recorded</p>{% endif %}
+        </div>
+      </div>
+
+      {% if history | length > 1 %}
+      <div class="bg-white rounded-2xl border border-emerald-900/15 p-5 shadow-xs space-y-3">
+        <h2 class="font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="history" class="w-4 h-4 text-emerald-600"></i> Report History ({{ history | length }})</h2>
+        <div class="space-y-1.5">
+          {% for r in history %}
+          <a href="/patient-dashboard/patient/{{ patient.id }}?report={{ r.id }}"
+            class="block rounded-xl px-3 py-2.5 border transition {% if report and r.id == report.id %} bg-emerald-50 border-emerald-300 {% else %} bg-white border-emerald-900/10 hover:bg-emerald-50/50 {% endif %}">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-xs font-semibold text-slate-800 truncate">{{ r.title }}</p>
+              {{ priority_badge(r.priority) }}
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">{{ r.created_display }}</p>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ============ RIGHT: the report ============ -->
+    <div class="lg:col-span-8 space-y-4">
+      {% if report %}
+      <div class="bg-white rounded-2xl border border-emerald-900/15 shadow-xs overflow-hidden">
+        <div class="bg-gradient-to-r from-emerald-50 to-emerald-100/50 border-b border-emerald-200/60 px-6 py-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 class="font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="file-heart" class="w-4 h-4 text-emerald-600"></i> {{ report.title }}</h2>
+            <p class="text-xs text-slate-600 mt-1">Generated {{ report.created_display }} · AI health assistant</p>
+          </div>
+          <div class="text-right shrink-0">
+            <p class="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Risk level</p>
+            <p class="text-sm font-bold {% if report.risk_level == 'high' %}text-red-700{% elif report.risk_level == 'moderate' %}text-amber-700{% else %}text-emerald-700{% endif %}">{{ report.risk_level | upper }}</p>
+          </div>
+        </div>
+
+        <div class="p-6 space-y-6">
+          {% if report.summary %}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5"><i data-lucide="align-left" class="w-3.5 h-3.5 text-emerald-600"></i>Summary</h3>
+            <p class="text-sm text-slate-700 leading-relaxed bg-[#f6f9f6] border border-emerald-900/10 rounded-xl p-4">{{ report.summary }}</p>
+          </div>
+          {% endif %}
+
+          {% if report.chief_complaint %}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5"><i data-lucide="stethoscope" class="w-3.5 h-3.5 text-emerald-600"></i>Chief complaint</h3>
+            <p class="text-sm font-medium text-slate-900">{{ report.chief_complaint }}</p>
+          </div>
+          {% endif %}
+
+          {% if report.symptoms %}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5"><i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-600"></i>Symptoms ({{ report.symptoms | length }})</h3>
+            <div class="grid sm:grid-cols-2 gap-2">
+              {% for s in report.symptoms %}
+              <div class="rounded-xl border border-emerald-900/10 bg-white p-3.5 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-slate-800">{{ s.name }}</p>
+                  {% if s.duration %}<p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i>{{ s.duration }}</p>{% endif %}
+                  {% if s.notes %}<p class="text-xs text-slate-500 mt-1">{{ s.notes }}</p>{% endif %}
+                </div>
+                {% if s.severity %}
+                <span class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold border
+                  {% if s.severity == 'severe' %}bg-red-50 text-red-800 border-red-200
+                  {% elif s.severity == 'moderate' %}bg-amber-50 text-amber-800 border-amber-200
+                  {% else %}bg-emerald-50 text-emerald-800 border-emerald-200{% endif %}">{{ s.severity | capitalize }}</span>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if report.considerations %}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5"><i data-lucide="brain" class="w-3.5 h-3.5 text-emerald-600"></i>Possible considerations</h3>
+            {{ bullet_list(report.considerations) }}
+          </div>
+          {% endif %}
+
+          {% if report.recommendations %}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5"><i data-lucide="clipboard-check" class="w-3.5 h-3.5 text-emerald-600"></i>Recommendations</h3>
+            <div class="bg-emerald-50/60 border border-emerald-200 rounded-xl p-4">{{ bullet_list(report.recommendations) }}</div>
+          </div>
+          {% endif %}
+
+          {% if report.follow_up %}
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5"><i data-lucide="calendar-clock" class="w-3.5 h-3.5 text-emerald-600"></i>Follow-up</h3>
+            <p class="text-sm text-slate-700">{{ report.follow_up }}</p>
+          </div>
+          {% endif %}
+
+          <p class="text-xs text-slate-400 border-t border-emerald-900/10 pt-4 flex gap-2"><i data-lucide="info" class="w-4 h-4 shrink-0"></i>{{ report.disclaimer }}</p>
+        </div>
+      </div>
+
+      {# ---- the conversation the report came from ---- #}
+      {% if chat %}
+      <details class="bg-white rounded-2xl border border-emerald-900/15 shadow-xs overflow-hidden group">
+        <summary class="cursor-pointer list-none px-6 py-4 flex items-center justify-between hover:bg-emerald-50/40 transition">
+          <span class="font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="message-circle" class="w-4 h-4 text-emerald-600"></i> Patient conversation ({{ chat | length }} messages)</span>
+          <span class="text-xs text-emerald-700 font-medium">Show / hide</span>
+        </summary>
+        <div class="border-t border-emerald-900/10 p-6 space-y-3 bg-[#f6f9f6] max-h-[520px] overflow-y-auto">
+          {% for m in chat %}
+          <div class="flex {{ 'justify-end' if m.role == 'user' else 'justify-start' }}">
+            <div class="max-w-md px-4 py-2.5 rounded-xl text-sm whitespace-pre-wrap
+              {{ 'bg-emerald-700 text-white' if m.role == 'user' else 'bg-white border border-emerald-900/15 text-slate-800' }}">
+              <p>{{ m.content }}</p>
+              <p class="text-[10px] mt-1 {{ 'text-emerald-100' if m.role == 'user' else 'text-slate-400' }}">{{ "Patient" if m.role == "user" else "AI assistant" }} · {{ m.time }}</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </details>
+      {% endif %}
+
+      {% else %}
+      <div class="bg-white rounded-2xl border border-emerald-900/15 shadow-xs py-16 text-center">
+        <i data-lucide="file-x" class="w-8 h-8 text-slate-300 mx-auto mb-2"></i>
+        <p class="text-sm font-medium text-slate-600">No report yet</p>
+        <p class="text-xs text-slate-400 mt-1">This patient hasn't generated a report from the AI chat.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    var input = document.getElementById("patient-search-input");
+    if (!input) return; // detail view
+    var rows = Array.prototype.slice.call(document.querySelectorAll(".patient-row"));
+    var empty = document.getElementById("no-search-results");
+    var clearBtn = document.getElementById("clear-search-btn");
+
+    function apply() {
+      var term = input.value.trim().toLowerCase();
+      var shown = 0;
+      rows.forEach(function (r) {
+        var hit = !term || (r.dataset.search || "").indexOf(term) !== -1;
+        r.classList.toggle("hidden", !hit);
+        if (hit) shown++;
+      });
+      if (empty) empty.classList.toggle("hidden", shown > 0 || rows.length === 0);
+      if (clearBtn) clearBtn.classList.toggle("hidden", !term);
+    }
+    function clear() { input.value = ""; apply(); input.focus(); }
+
+    input.addEventListener("input", apply);
+    if (clearBtn) clearBtn.addEventListener("click", clear);
+    var reset = document.getElementById("reset-search-state-btn");
+    if (reset) reset.addEventListener("click", clear);
+    document.querySelectorAll(".quick-symptom-tag").forEach(function (b) {
+      b.addEventListener("click", function () { input.value = b.dataset.term; apply(); });
+    });
+    apply();
+  })();
+</script>
+{% endblock %}

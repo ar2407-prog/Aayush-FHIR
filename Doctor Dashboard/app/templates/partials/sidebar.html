@@ -1,0 +1,35 @@
+<aside
+  class="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:w-72 bg-white border-r border-emerald-900/10 p-4 space-y-1"
+>
+  <div class="flex items-center gap-2 px-2 py-3 mb-2">
+    <div class="w-9 h-9 rounded-xl bg-emerald-700 flex items-center justify-center text-white">
+      <i data-lucide="leaf" class="w-4 h-4"></i>
+    </div>
+    <span class="font-bold text-slate-900 tracking-tight">AAyushFHIR</span>
+  </div>
+
+  {# Add a new page? Add its link here — see README.md "Adding a new page". #}
+  {% set nav_items = [
+    {"href": "/ehr", "label": "EHR Intake", "icon": "file-text"},
+    {"href": "/history", "label": "Patient History", "icon": "users"},
+    {"href": "/namaste", "label": "Namaste Code", "icon": "search"},
+    {"href": "/diet", "label": "Diet", "icon": "apple"},
+    {"href": "/patient-dashboard", "label": "Patient Review", "icon": "briefcase-medical"},
+  ] %}
+
+  {% for item in nav_items %}
+    {% set is_active = request.url.path == item.href or request.url.path.startswith(item.href ~ "/") %}
+    <a
+      href="{{ item.href }}"
+      class="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-2xl text-xs transition-all
+        {% if is_active %}
+          bg-emerald-100/70 text-emerald-950 border border-emerald-200/80 shadow-xs font-semibold
+        {% else %}
+          font-medium text-stone-600 hover:bg-emerald-50/80 hover:text-stone-900
+        {% endif %}"
+    >
+      <i data-lucide="{{ item.icon }}" class="w-4 h-4 {{ 'text-emerald-600' if is_active else 'text-stone-400' }}"></i>
+      <span>{{ item.label }}</span>
+    </a>
+  {% endfor %}
+</aside>

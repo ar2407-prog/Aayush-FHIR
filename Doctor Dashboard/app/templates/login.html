@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In - AAyushFHIR</title>
+    <link rel="stylesheet" href="/static/css/output.css" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body class="bg-[#f6f9f6] text-slate-800 min-h-screen flex items-center justify-center font-sans antialiased p-4">
+    <div class="w-full max-w-sm">
+      <div class="flex flex-col items-center mb-6">
+        <div class="w-11 h-11 rounded-2xl bg-emerald-700 flex items-center justify-center text-white shadow-xs mb-3">
+          <i data-lucide="leaf" class="w-5 h-5"></i>
+        </div>
+        <h1 class="text-lg font-bold text-slate-900 tracking-tight">AAyushFHIR</h1>
+        <p class="text-xs text-slate-500">Clinical Terminology & FHIR Platform</p>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-emerald-900/10 shadow-xs p-6 space-y-5">
+        <div>
+          <h2 class="font-semibold text-slate-900 text-base">Welcome back</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Sign in to continue to your workspace.</p>
+        </div>
+
+        {% if error %}
+          <div class="text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/login" class="space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Email</label>
+            <input
+              type="email"
+              name="email"
+              required
+              placeholder="doctor@clinic.in"
+              class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Password</label>
+            <input
+              type="password"
+              name="password"
+              required
+              placeholder="••••••••"
+              class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-medium py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2 shadow-xs"
+          >
+            <i data-lucide="log-in" class="w-4 h-4"></i>
+            <span>Sign In</span>
+          </button>
+        </form>
+
+        <p class="text-xs text-center text-slate-500">
+          Don't have an account?
+          <a href="/signup" class="text-emerald-700 font-medium hover:underline">Create one</a>
+        </p>
+      </div>
+    </div>
+
+    <script>
+      if (window.lucide) lucide.createIcons();
+    </script>
+  </body>
+</html>

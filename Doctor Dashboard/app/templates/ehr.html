@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}EHR Intake - AAyushFHIR{% endblock %}
+
+{% block content %}
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <div
+        class="flex items-center space-x-2 text-xs font-semibold text-emerald-700 bg-emerald-100/60 px-3 py-1 rounded-full w-fit mb-2 border border-emerald-200"
+      >
+        <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+        <span>Clinical Intake & Mapping</span>
+      </div>
+      <h1 class="text-2xl font-bold text-slate-900 tracking-tight">EHR Progress Notes Entry</h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Register the patient, convert notes into NAMASTE codes, and generate FHIR R4 bundles.
+      </p>
+    </div>
+
+    <div class="bg-white p-3 rounded-xl border border-emerald-900/10 shadow-xs flex items-center space-x-3">
+      <div
+        class="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 font-bold text-sm"
+      >
+        {{ (patient.full_name if patient else "P")[:2] | upper }}
+      </div>
+      <div class="text-xs">
+        <p class="font-medium text-slate-900">
+          {{ "Patient: " ~ patient.full_name if patient else "No patient selected" }}
+        </p>
+        <p class="text-slate-500">
+          {% if patient %}ID: {{ patient.ayush_id }} • {{ patient.prakriti or "Prakriti unset" }}{% else %}Fill in Patient Details below to begin{% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Single form covers Patient Details + Clinical Note + Prescription; one submit saves all three -->
+  <form method="post" action="/ehr/save" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <input type="hidden" name="patient_id" value="{{ patient.id if patient else '' }}" />
+
+    <!-- Left Column: Forms (7 Cols) -->
+    <div class="lg:col-span-7 space-y-6">
+      <!-- SECTION A: Patient Details -->
+      <div class="bg-white rounded-2xl border border-emerald-900/10 shadow-xs overflow-hidden">
+        <div class="px-6 py-4 border-b border-emerald-900/5">
+          <h2 class="font-semibold text-slate-900 flex items-center gap-2">
+            <i data-lucide="user-round" class="w-4 h-4 text-emerald-600"></i>
+            Patient Details
+          </h2>
+        </div>
+
+        <div class="p-6 space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="col-span-2 sm:col-span-1">
+              <label class="block text-xs font-medium text-slate-700 mb-1">Full Name</label>
+              <input name="full_name" type="text" required value="{{ patient.full_name if patient else '' }}"
+                placeholder="Rajesh Kumar"
+                class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">Age</label>
+              <input name="age" type="number" min="0" value="{{ patient.age if patient else '' }}" placeholder="42"
+                class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">Gender</label>
+              <select name="gender"
+                class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition">
+                {% set g = patient.gender if patient else "male" %}
+                <option value="male" {{ "selected" if g == "male" }}>Male</option>
+                <option value="female" {{ "selected" if g == "female" }}>Female</option>
+                <option value="other" {{ "selected" if g == "other" }}>Other</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">Contact Number</label>
+              <input name="phone" type="tel" value="{{ patient.phone if patient else '' }}" placeholder="+91 98xxxxxxx"
+                class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">Prakriti Type</label>
+              {% set prakriti_options = ["Vata", "Pitta", "Kapha", "Vata-Pitta", "Pitta-Kapha", "Vata-Kapha", "Tridoshic"] %}
+              <select name="prakriti"
+                class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition">
+                {% for opt in prakriti_options %}
+                  <option value="{{ opt }}" {{ "selected" if patient and patient.prakriti == opt }}>{{ opt }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Chief Complaints</label>
+            <textarea name="chief_complaints" rows="2" placeholder="Hyperacidity, joint stiffness in the mornings..."
+              class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition resize-none">{{ patient.chief_complaints if patient else '' }}</textarea>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {% set vitals = patient.vitals if patient and patient.vitals else {} %}
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">BP</label>
+              <input name="bp" type="text" value="{{ vitals.bp or '' }}" placeholder="120/80"
+                class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">Pulse</label>
+              <input name="pulse" type="text" value="{{ vitals.pulse or '' }}" placeholder="78 bpm"
+                class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">Weight (kg)</label>
+              <input name="weight" type="text" value="{{ vitals.weight or '' }}" placeholder="68"
+                class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">Temp (°F)</label>
+              <input name="temp" type="text" value="{{ vitals.temp or '' }}" placeholder="98.4"
+                class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Medical History</label>
+            <textarea name="medical_history" rows="2" placeholder="Prior conditions, surgeries, allergies, ongoing medication..."
+              class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition resize-none">{{ patient.medical_history if patient else '' }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION B: Clinical Progress Note -->
+      <div class="bg-white rounded-2xl border border-emerald-900/10 p-6 shadow-xs space-y-5">
+        <div class="flex items-center justify-between border-b border-emerald-900/5 pb-4">
+          <h2 class="font-semibold text-slate-900 flex items-center gap-2">
+            <i data-lucide="edit-3" class="w-4 h-4 text-emerald-600"></i>
+            Clinical Progress Note
+          </h2>
+          <span class="text-xs text-slate-400">NLP Vectorizer Ready</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Encounter Type</label>
+            {% set etype = encounter.encounter_type if encounter else "ambulatory" %}
+            <select name="encounter_type"
+              class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition">
+              <option value="ambulatory" {{ "selected" if etype == "ambulatory" }}>OPD Consultation (Ambulatory)</option>
+              <option value="inpatient" {{ "selected" if etype == "inpatient" }}>IPD Panchakarma (Inpatient)</option>
+              <option value="followup" {{ "selected" if etype == "followup" }}>Follow-up Assessment</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Ayush Speciality</label>
+            {% set spec = encounter.speciality if encounter else "kaya_chikitsa" %}
+            <select name="speciality"
+              class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition">
+              <option value="kaya_chikitsa" {{ "selected" if spec == "kaya_chikitsa" }}>Kaya Chikitsa (General Medicine)</option>
+              <option value="panchakarma" {{ "selected" if spec == "panchakarma" }}>Panchakarma (Detox Therapeutics)</option>
+              <option value="shalya_tantra" {{ "selected" if spec == "shalya_tantra" }}>Shalya Tantra (Surgery)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-medium text-slate-700">Unstructured Notes & Symptoms</label>
+            <button type="button" id="load-sample-btn" class="text-xs text-emerald-700 hover:text-emerald-800 font-medium hover:underline">
+              + Load Sample Note
+            </button>
+          </div>
+          <textarea id="clinical-notes" name="clinical_notes" rows="5"
+            placeholder="Type or paste unstructured doctor notes e.g., Patient complains of chronic digestive fire weakness (Mandagni), hyperacidity (Amlapitta), and joint stiffness in morning..."
+            class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl p-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition resize-none">{{ encounter.notes if encounter else '' }}</textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">NAMASTE / ICD-11 Manual Code Tags (Optional)</label>
+          <div class="flex items-center space-x-2">
+            <div class="relative flex-1">
+              <i data-lucide="tag" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input type="text" id="tag-input" placeholder="e.g., AG-012 (Amlapitta), ICD-11: CA23"
+                class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+            </div>
+            <button type="button" id="add-tag-btn"
+              class="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-medium px-4 py-2 rounded-xl transition flex items-center gap-1">
+              Add Tag
+            </button>
+          </div>
+          <!-- Visible chips are client-side only; the real submitted value lives in the hidden input below. -->
+          <div id="tag-chip-container" class="flex flex-wrap gap-2 mt-2"></div>
+          <input
+            type="hidden"
+            id="manual-tags-field"
+            name="manual_tags"
+            value="{{ (encounter.manual_tags | join(', ')) if encounter and encounter.manual_tags else '' }}"
+          />
+        </div>
+      </div>
+
+      <!-- SECTION C: Prescription & Treatment Plan -->
+      <div id="prescriptions" class="bg-white rounded-2xl border border-emerald-900/10 p-6 shadow-xs space-y-4">
+        <div class="flex items-center justify-between border-b border-emerald-900/5 pb-4">
+          <h2 class="font-semibold text-slate-900 flex items-center gap-2">
+            <i data-lucide="pill" class="w-4 h-4 text-emerald-600"></i>
+            Prescription & Treatment Plan
+          </h2>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Ayush Formulations / Herbal Prescription</label>
+          <textarea name="rx_formulations" rows="2" placeholder="e.g., Sutshekhar Ras 250mg BID after meals; Triphala Churna 5g HS"
+            class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition resize-none">{{ prescription.formulations if prescription else '' }}</textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Pathya (Recommended Diet)</label>
+            <textarea name="rx_pathya" rows="2" placeholder="Warm, light, easily digestible food..."
+              class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition resize-none">{{ prescription.pathya if prescription else '' }}</textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Apathya (Foods to Avoid)</label>
+            <textarea name="rx_apathya" rows="2" placeholder="Curd, fried food, cold beverages..."
+              class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition resize-none">{{ prescription.apathya if prescription else '' }}</textarea>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Treatment Duration</label>
+          <input name="rx_duration" type="text" value="{{ prescription.duration if prescription else '' }}"
+            placeholder="e.g., 14 days, review after 2 weeks"
+            class="w-full sm:w-1/2 bg-[#f6f9f6] border border-emerald-900/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+        </div>
+
+        <div class="pt-2">
+          <button type="submit"
+            class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-medium py-2.5 px-4 rounded-xl transition flex items-center justify-center space-x-2 shadow-xs">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+            <span>Save Record & Generate FHIR R4 Bundle</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: FHIR & Vector Mapping Output (5 Cols) — fully server-rendered -->
+    <div class="lg:col-span-5 space-y-6">
+      <div class="bg-white rounded-2xl border border-emerald-900/10 p-6 shadow-xs flex flex-col h-full min-h-[480px] sticky top-24">
+        <div class="flex items-center justify-between border-b border-emerald-900/5 pb-4 mb-4">
+          <h2 class="font-semibold text-slate-900 flex items-center gap-2">
+            <i data-lucide="cpu" class="w-4 h-4 text-emerald-600"></i>
+            Pipeline Output
+          </h2>
+          <div class="flex bg-[#f6f9f6] p-1 rounded-lg border border-emerald-900/10 text-xs font-medium">
+            <button type="button" id="tab-fhir" class="px-3 py-1 rounded-md bg-white text-emerald-800 shadow-xs">FHIR JSON</button>
+            <button type="button" id="tab-mapping" class="px-3 py-1 rounded-md text-slate-500 hover:text-slate-800">Vector Mapping</button>
+          </div>
+        </div>
+
+        <!-- Panel 1: FHIR R4 Payload -->
+        <div id="panel-fhir" class="flex-1 flex flex-col space-y-3">
+          <div class="flex items-center justify-between text-xs text-slate-500">
+            <span>Validation: <strong class="text-emerald-700 font-semibold">FHIR R4 Standard</strong></span>
+            <div class="flex items-center gap-3">
+              <button type="button" id="copy-fhir-btn" class="text-emerald-700 hover:underline flex items-center gap-1">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy
+              </button>
+              {% if patient %}
+                <a href="/patients/{{ patient.id }}/fhir" class="text-emerald-700 hover:underline flex items-center gap-1">
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i> Download
+                </a>
+              {% endif %}
+            </div>
+          </div>
+          <pre
+            class="bg-slate-950 text-slate-100 p-4 rounded-xl text-xs font-mono flex-1 overflow-x-auto max-h-[500px] border border-slate-800 leading-relaxed"
+          ><code id="fhir-output">{{ fhir_json }}</code></pre>
+        </div>
+
+        <!-- Panel 2: Terminology Vector Match -->
+        <div id="panel-mapping" class="hidden flex-1 space-y-3 overflow-y-auto max-h-[500px]">
+          <p class="text-xs text-slate-500">Entities extracted and matched via Supabase Vector similarity:</p>
+          {% if mappings %}
+            <div class="space-y-2">
+              {% for m in mappings %}
+                <div class="p-3 bg-emerald-50/50 rounded-xl border border-emerald-200/60 text-xs space-y-1">
+                  <div class="flex justify-between font-medium text-slate-800">
+                    <span>Extracted: "{{ m.extracted_term }}"</span>
+                    <span class="text-emerald-700 font-mono font-bold">{{ m.confidence }}% Match</span>
+                  </div>
+                  <p class="text-slate-600">
+                    Mapped to: <strong class="text-emerald-900">{{ m.namaste_term }} (NAMASTE: {{ m.namaste_code }})</strong>
+                  </p>
+                  {% if m.icd11_code %}
+                    <p class="text-slate-400 text-[11px]">ICD-11 Equivalent: {{ m.icd11_code }}</p>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-xs text-slate-400 italic">No terminology matches yet — save a note to generate them.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </form>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/js/ehr.js"></script>
+{% endblock %}

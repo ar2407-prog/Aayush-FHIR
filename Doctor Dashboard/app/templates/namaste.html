@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+  <div>
+      <div
+        class="flex items-center space-x-2 text-xs font-semibold text-emerald-700 bg-emerald-100/60 px-3 py-1 rounded-full w-fit mb-2 border border-emerald-200"
+      >
+        <i data-lucide="search" class="w-3.5 h-3.5"></i>
+        <span>Namste Code</span>
+      </div>
+    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">
+      Ayurvedic Concept & Code Search
+    </h1>
+    <p class="text-sm text-slate-500 mt-1">
+      Cross-map Classical Ayurvedic concepts (NAMASTE portal) with modern WHO ICD-11 codings.
+    </p>
+  </div>
+
+  <div class="flex items-center space-x-2">
+    <span class="text-xs font-medium text-slate-500 bg-white px-3 py-2 rounded-xl border border-emerald-900/10 shadow-xs">
+      Database: <strong class="text-emerald-800">100+ Concepts</strong>
+    </span>
+  </div>
+</div>
+
+<!-- Search Control Card -->
+<div class="bg-white rounded-2xl border border-emerald-900/10 p-6 shadow-xs space-y-4">
+  <!-- Search Input Bar -->
+  <form id="search-form" method="get" action="/namaste" class="relative flex items-center">
+    <i data-lucide="search" class="w-5 h-5 text-emerald-700 absolute left-4 pointer-events-none"></i>
+    <input
+      type="text"
+      id="search-query"
+      name="q"
+      value="{{ search_query }}"
+      placeholder="Search by symptom in English/Ayurveda, concept, or code (e.g., 'fever', 'joint pain', 'Amlapitta', 'AG-012')..."
+      class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl pl-12 pr-40 py-3.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition placeholder:text-slate-400"
+      autocomplete="off"
+    />
+    <div class="absolute right-2 flex items-center gap-1.5">
+      {% if search_query or (active_domain and active_domain != 'all') %}
+      <a
+        href="/namaste"
+        class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium text-xs px-3 py-2 rounded-lg transition"
+        title="Reset filters"
+      >
+        Clear
+      </a>
+      {% endif %}
+      <button
+        type="submit"
+        class="bg-emerald-700 hover:bg-emerald-800 text-white font-medium text-xs px-4 py-2 rounded-lg transition shadow-xs flex items-center gap-1.5"
+      >
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+        Search
+      </button>
+    </div>
+  </form>
+
+  <!-- Quick Filters and Category Toggles -->
+  <div class="flex flex-wrap items-center justify-between gap-3 text-xs pt-1">
+    <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+      <span class="text-slate-400 font-medium">Domain:</span>
+      <a
+        href="/namaste?domain=all{% if search_query %}&q={{ search_query }}{% endif %}"
+        class="domain-pill {% if not active_domain or active_domain == 'all' %}bg-emerald-800 text-white shadow-xs{% else %}bg-[#f6f9f6] text-slate-600 hover:bg-emerald-50 border border-emerald-900/10{% endif %} px-3 py-1 rounded-lg transition"
+      >
+        All
+      </a>
+      <a
+        href="/namaste?domain=dosha{% if search_query %}&q={{ search_query }}{% endif %}"
+        class="domain-pill {% if active_domain == 'dosha' %}bg-emerald-800 text-white shadow-xs{% else %}bg-[#f6f9f6] text-slate-600 hover:bg-emerald-50 border border-emerald-900/10{% endif %} px-3 py-1 rounded-lg transition"
+      >
+        Dosha & Agni
+      </a>
+      <a
+        href="/namaste?domain=vyadhi{% if search_query %}&q={{ search_query }}{% endif %}"
+        class="domain-pill {% if active_domain == 'vyadhi' %}bg-emerald-800 text-white shadow-xs{% else %}bg-[#f6f9f6] text-slate-600 hover:bg-emerald-50 border border-emerald-900/10{% endif %} px-3 py-1 rounded-lg transition"
+      >
+        Vyadhi (Diseases)
+      </a>
+      <a
+        href="/namaste?domain=chikitsa{% if search_query %}&q={{ search_query }}{% endif %}"
+        class="domain-pill {% if active_domain == 'chikitsa' %}bg-emerald-800 text-white shadow-xs{% else %}bg-[#f6f9f6] text-slate-600 hover:bg-emerald-50 border border-emerald-900/10{% endif %} px-3 py-1 rounded-lg transition"
+      >
+        Chikitsa (Therapy)
+      </a>
+    </div>
+
+    <!-- Suggested Quick Searches -->
+    <div class="flex items-center space-x-2 text-slate-500 flex-wrap gap-y-1">
+      <span>Try:</span>
+      <a href="/namaste?q=Fever" class="quick-suggest text-emerald-700 hover:underline">Fever</a>
+      <a href="/namaste?q=Acidity" class="quick-suggest text-emerald-700 hover:underline">Acidity</a>
+      <a href="/namaste?q=Joint%20Pain" class="quick-suggest text-emerald-700 hover:underline">Joint Pain</a>
+      <a href="/namaste?q=Mandagni" class="quick-suggest text-emerald-700 hover:underline">Mandagni</a>
+      <a href="/namaste?q=Sandhivata" class="quick-suggest text-emerald-700 hover:underline">Sandhivata</a>
+      <a href="/namaste?q=Jwara" class="quick-suggest text-emerald-700 hover:underline">Jwara</a>
+    </div>
+  </div>
+</div>
+
+<!-- Search Results Area -->
+<div class="space-y-4">
+  <!-- Results Summary Bar -->
+  <div class="flex items-center justify-between px-1">
+    <p class="text-xs text-slate-500">
+      {% if search_query %}
+      Showing results for <span id="active-query-label" class="font-semibold text-slate-800">"{{ search_query }}"</span> ({{ terms | length }} matches)
+      {% else %}
+      Showing all <span class="font-semibold text-slate-800">{{ terms | length }}</span> concepts
+      {% endif %}
+    </p>
+    <span class="text-xs text-slate-400">
+      Bilingual Search: <code class="font-mono text-emerald-800">English ⇄ NAMASTE / ICD-11</code>
+    </span>
+  </div>
+
+  <!-- Results List Grid -->
+  {% if terms %}
+  <div id="results-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for term in terms %}
+    <div
+      class="term-card bg-white rounded-2xl border border-emerald-900/10 p-5 shadow-xs hover:border-emerald-500/40 transition space-y-3"
+      data-search="{{ (term.name or '') | lower }} {{ (term.namaste_code or '') | lower }} {{ (term.icd11_code or '') | lower }} {{ (term.description or '') | lower }} {{ (term.srotas or '') | lower }}"
+    >
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+            {{ term.namaste_code }}
+          </span>
+          <h3 class="text-base font-bold text-slate-900 mt-1.5">
+            {{ term.name }}
+          </h3>
+        </div>
+        <span class="bg-emerald-100/80 text-emerald-800 text-xs font-mono font-bold px-2.5 py-1 rounded-full border border-emerald-300">
+          Match
+        </span>
+      </div>
+
+      <p class="text-xs text-slate-600 line-clamp-2">
+        {{ term.description }}
+      </p>
+
+      <div class="pt-2 border-t border-emerald-900/5 grid grid-cols-2 gap-2 text-[11px]">
+        <div>
+          <span class="text-slate-400 block">System Mapping</span>
+          <span class="font-medium text-slate-700">{{ term.srotas or "—" }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block">WHO ICD-11 Equivalent</span>
+          <span class="font-mono font-semibold text-emerald-900">{{ term.icd11_code or "—" }}</span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="py-16 text-center bg-white rounded-2xl border border-emerald-900/10 p-8 shadow-xs">
+    <i data-lucide="search-x" class="w-10 h-10 text-slate-300 mx-auto mb-3"></i>
+    <h3 class="text-base font-semibold text-slate-800">No Concepts Found</h3>
+    <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+      {% if search_query %}
+      No terminology matched "{{ search_query }}". Try searching in English (e.g., "fever", "cough", "acidity", "joint pain", "headache") or Sanskrit concept names.
+      {% else %}
+      No terms available in this category.
+      {% endif %}
+    </p>
+    {% if search_query or (active_domain and active_domain != 'all') %}
+    <a
+      href="/namaste"
+      class="inline-block mt-4 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-medium rounded-xl transition shadow-xs"
+    >
+      Clear Filters & Show All
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  // Instant client-side search with English/Ayurvedic synonym expansion
+  const NAMASTE_SYNONYMS = {
+    fever: ["jwara", "jwar", "pyrexia", "bukhar", "taap", "temperature", "santapa"],
+    cough: ["kasa", "kaas", "khasi", "coughing", "dry cough"],
+    cold: ["pratishyaya", "sardi", "zukham", "rhinitis", "coryza", "runny nose"],
+    headache: ["shirashoola", "shirahshoola", "sir dard", "sirdard", "migraine"],
+    "joint pain": ["sandhivata", "sandhishoola", "arthritis", "osteoarthritis", "jodo ka dard", "joint stiffness"],
+    arthritis: ["sandhivata", "amavata", "sandhishoola", "gathiya", "joint pain"],
+    acidity: ["amlapitta", "amla pitta", "hyperacidity", "acid reflux", "heartburn", "pitta"],
+    indigestion: ["mandagni", "agnimandya", "ajirna", "badhazmi", "weak digestion"],
+    asthma: ["tamaka shwasa", "shwasa", "swas", "dama"],
+    breathlessness: ["shwasa", "shwas", "dyspnea", "shortness of breath", "saans phulna"],
+    "chest pain": ["hridshoola", "hrid shoola", "hridroga", "sineme dard", "angina"],
+    "stomach pain": ["udarashoola", "udara shoola", "shoola", "pet dard", "abdominal pain"],
+    diarrhea: ["atisara", "atisar", "dast", "loose motions", "loose stools"],
+    vomiting: ["chardi", "chhardi", "vaman", "ulti"],
+    constipation: ["vibandha", "malabaddhata", "kabz"],
+    itching: ["kandu", "khujli", "pruritus"],
+    diabetes: ["prameha", "madhumeha", "sugar"],
+    "back pain": ["katishoola", "kati shoola", "kamar dard", "backache"],
+    weakness: ["daurbalya", "kamzori", "fatigue"]
+  };
+
+  function expandNamasteSearchTerms(raw) {
+    const terms = new Set([raw]);
+    raw.split(/\s+/).forEach(w => { if (w.length >= 2) terms.add(w); });
+    for (const [eng, syns] of Object.entries(NAMASTE_SYNONYMS)) {
+      const all = [eng, ...syns];
+      if (Array.from(terms).some(t => all.some(r => r.includes(t) || t.includes(r)))) {
+        all.forEach(x => terms.add(x));
+      }
+    }
+    return Array.from(terms);
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const input = document.getElementById("search-query");
+    const cards = document.querySelectorAll(".term-card");
+    if (!input || !cards.length) return;
+
+    input.addEventListener("input", () => {
+      const q = input.value.trim().toLowerCase();
+      if (!q) {
+        cards.forEach(c => c.style.display = "");
+        return;
+      }
+      const expanded = expandNamasteSearchTerms(q);
+      cards.forEach(c => {
+        const searchData = (c.getAttribute("data-search") || "").toLowerCase();
+        const matched = searchData.includes(q) || expanded.some(t => t.length >= 2 && searchData.includes(t));
+        c.style.display = matched ? "" : "none";
+      });
+    });
+  });
+</script>
+{% endblock %}

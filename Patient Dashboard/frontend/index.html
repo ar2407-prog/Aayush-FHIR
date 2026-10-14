@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MediAssist · Patient Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] } } } };
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+  .scroll-thin::-webkit-scrollbar { width: 6px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+  .dot { animation: bounce 1s infinite; }
+  .dot:nth-child(2) { animation-delay: .15s } .dot:nth-child(3) { animation-delay: .3s }
+  @keyframes bounce { 0%,80%,100% { transform: translateY(0); opacity:.4 } 40% { transform: translateY(-4px); opacity:1 } }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+<!-- ======================= AUTH ======================= -->
+<section id="auth" class="hidden min-h-screen items-center justify-center p-4 bg-gradient-to-br from-white via-slate-50 to-emerald-50">
+  <div class="w-full max-w-md">
+    <div class="flex items-center justify-center gap-2 mb-6">
+      <div class="h-11 w-11 rounded-2xl bg-emerald-600 text-white grid place-items-center shadow-lg shadow-emerald-600/30">
+        <i data-lucide="heart-pulse" class="h-6 w-6"></i>
+      </div>
+      <span class="text-2xl font-bold text-slate-800">Medi<span class="text-emerald-600">Assist</span></span>
+    </div>
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/60 p-8">
+      <h1 id="auth-title" class="text-xl font-semibold text-slate-800">Welcome back</h1>
+      <p id="auth-sub" class="text-sm text-slate-500 mt-1">Sign in to your health dashboard.</p>
+      <form id="auth-form" class="mt-6 space-y-4">
+        <div id="name-wrap" class="hidden">
+          <label class="text-sm font-medium text-slate-600">Full name</label>
+          <input id="auth-name" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white" placeholder="Jane Doe" />
+        </div>
+        <div>
+          <label class="text-sm font-medium text-slate-600">Email</label>
+          <input id="auth-email" type="email" required class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white" placeholder="you@email.com" />
+        </div>
+        <div>
+          <label class="text-sm font-medium text-slate-600">Password</label>
+          <input id="auth-pass" type="password" required minlength="6" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white" placeholder="••••••••" />
+        </div>
+        <p id="auth-msg" class="hidden text-sm rounded-lg px-3 py-2"></p>
+        <button id="auth-btn" class="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 transition shadow-md shadow-emerald-600/20">Sign in</button>
+      </form>
+      <p class="text-sm text-slate-500 text-center mt-5">
+        <span id="auth-toggle-text">New here?</span>
+        <button id="auth-toggle" class="text-emerald-600 font-medium hover:underline">Create an account</button>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= APP ======================= -->
+<section id="app" class="hidden h-screen flex">
+  <!-- Sidebar -->
+  <aside class="w-64 shrink-0 bg-white border-r border-slate-200 hidden md:flex flex-col">
+    <div class="px-6 h-16 flex items-center gap-2 border-b border-slate-100">
+      <div class="h-9 w-9 rounded-xl bg-emerald-600 text-white grid place-items-center"><i data-lucide="heart-pulse" class="h-5 w-5"></i></div>
+      <span class="text-lg font-bold">Medi<span class="text-emerald-600">Assist</span></span>
+    </div>
+    <nav class="p-4 space-y-1 flex-1">
+      <button data-nav="chat" class="nav-btn w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium"><i data-lucide="message-circle-heart" class="h-5 w-5"></i>Health Chat</button>
+      <button data-nav="reports" class="nav-btn w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium"><i data-lucide="file-heart" class="h-5 w-5"></i>My Reports</button>
+      <button data-nav="profile" class="nav-btn w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium"><i data-lucide="user-round" class="h-5 w-5"></i>My Profile</button>
+    </nav>
+    <div class="p-4 border-t border-slate-100">
+      <div class="flex items-center gap-3 mb-3">
+        <div id="avatar" class="h-9 w-9 rounded-full bg-emerald-100 text-emerald-700 grid place-items-center font-semibold">?</div>
+        <div class="min-w-0">
+          <p id="side-name" class="text-sm font-medium truncate">—</p>
+          <p id="side-email" class="text-xs text-slate-400 truncate">—</p>
+        </div>
+      </div>
+      <button id="logout" class="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 py-2 text-sm"><i data-lucide="log-out" class="h-4 w-4"></i>Sign out</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 flex flex-col min-w-0">
+    <!-- mobile top bar -->
+    <header class="md:hidden h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4">
+      <span class="font-bold">Medi<span class="text-emerald-600">Assist</span></span>
+      <div class="flex gap-1">
+        <button data-nav="chat" class="nav-btn p-2 rounded-lg"><i data-lucide="message-circle-heart" class="h-5 w-5"></i></button>
+        <button data-nav="reports" class="nav-btn p-2 rounded-lg"><i data-lucide="file-heart" class="h-5 w-5"></i></button>
+        <button data-nav="profile" class="nav-btn p-2 rounded-lg"><i data-lucide="user-round" class="h-5 w-5"></i></button>
+        <button id="logout-m" class="p-2 rounded-lg text-slate-500"><i data-lucide="log-out" class="h-5 w-5"></i></button>
+      </div>
+    </header>
+
+    <!-- CHAT VIEW -->
+    <div id="view-chat" class="view flex-1 flex min-h-0">
+      <div class="w-64 shrink-0 bg-white/60 border-r border-slate-200 hidden lg:flex flex-col">
+        <div class="p-4">
+          <button id="new-chat" class="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 text-sm font-medium shadow-md shadow-emerald-600/20"><i data-lucide="plus" class="h-4 w-4"></i>New chat</button>
+        </div>
+        <p class="px-5 text-xs font-semibold uppercase tracking-wide text-slate-400">History</p>
+        <div id="sessions" class="flex-1 overflow-y-auto scroll-thin p-3 space-y-1"></div>
+      </div>
+
+      <div class="flex-1 flex flex-col min-w-0">
+        <div class="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between">
+          <div>
+            <h2 class="font-semibold">Health assistant</h2>
+            <p class="text-xs text-slate-400">Personalised with your profile · not a substitute for a doctor</p>
+          </div>
+          <button id="gen-report" class="flex items-center gap-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-4 py-2 text-sm font-medium disabled:opacity-50">
+            <i data-lucide="file-plus-2" class="h-4 w-4"></i><span id="gen-label">Generate report</span>
+          </button>
+        </div>
+        <div id="messages" class="flex-1 overflow-y-auto scroll-thin px-4 md:px-8 py-6 space-y-4"></div>
+        <form id="chat-form" class="bg-white border-t border-slate-200 p-4">
+          <div class="max-w-3xl mx-auto flex items-end gap-3">
+            <textarea id="chat-input" rows="1" class="flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white" placeholder="Describe your symptoms or ask a health question…"></textarea>
+            <button id="send-btn" class="h-11 w-11 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white grid place-items-center shadow-md shadow-emerald-600/20 disabled:opacity-50"><i data-lucide="send-horizontal" class="h-5 w-5"></i></button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- REPORTS VIEW -->
+    <div id="view-reports" class="view hidden flex-1 overflow-y-auto scroll-thin p-6 md:p-10">
+      <div class="max-w-4xl mx-auto">
+        <h2 class="text-2xl font-bold">My reports</h2>
+        <p class="text-slate-500 text-sm mt-1">Reports generated from your chats. Your doctor can view these.</p>
+        <div id="reports-list" class="mt-6 grid gap-4 sm:grid-cols-2"></div>
+      </div>
+    </div>
+
+    <!-- PROFILE VIEW -->
+    <div id="view-profile" class="view hidden flex-1 overflow-y-auto scroll-thin p-6 md:p-10">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-2xl font-bold">My profile</h2>
+        <p class="text-slate-500 text-sm mt-1">The chatbot uses this information to give you better answers.</p>
+        <form id="profile-form" class="mt-6 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 md:p-8 grid gap-5 sm:grid-cols-2"></form>
+      </div>
+    </div>
+  </main>
+</section>
+
+<!-- ======================= REPORT MODAL ======================= -->
+<div id="modal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm items-start justify-center overflow-y-auto p-4">
+  <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl my-8 overflow-hidden">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <span class="text-sm font-medium text-slate-500 flex items-center gap-2"><i data-lucide="file-heart" class="h-4 w-4 text-emerald-600"></i>Health report</span>
+      <button id="modal-close" class="p-2 rounded-lg hover:bg-slate-100"><i data-lucide="x" class="h-5 w-5"></i></button>
+    </div>
+    <div id="modal-body" class="p-6 md:p-8"></div>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed bottom-6 right-6 z-[60] rounded-xl bg-slate-800 text-white text-sm px-4 py-3 shadow-xl"></div>
+
+<script>
+/* ===================== helpers ===================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const icons = () => window.lucide && lucide.createIcons();
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDate = (d) => new Date(d).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.remove('hidden'); setTimeout(() => t.classList.add('hidden'), 3000); }
+
+// very small markdown: **bold**, bullets, line breaks (input is escaped first)
+function md(text) {
+  const lines = esc(text).split('\n');
+  let html = '', inList = false;
+  for (let l of lines) {
+    l = l.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    if (/^\s*[-*•]\s+/.test(l)) {
+      if (!inList) { html += '<ul class="list-disc pl-5 space-y-1 my-1">'; inList = true; }
+      html += `<li>${l.replace(/^\s*[-*•]\s+/, '')}</li>`;
+    } else {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += l.trim() ? `<p class="my-1">${l}</p>` : '';
+    }
+  }
+  return html + (inList ? '</ul>' : '');
+}
+
+/* ===================== state ===================== */
+let sb, session = null, sessionId = null, busy = false;
+let authMode = 'login';
+
+async function token() {
+  const { data } = await sb.auth.getSession();
+  return data.session?.access_token;
+}
+async function api(path, opts = {}) {
+  const t = await token();
+  const res = await fetch('/api' + path, {
+    method: opts.method || 'GET',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  if (!res.ok) {
+    let d = ''; try { d = (await res.json()).detail; } catch {}
+    // FastAPI validation errors (422) come back as an array of objects
+    if (Array.isArray(d)) d = d.map(x => `${(x.loc || []).slice(1).join('.')}: ${x.msg}`).join('; ');
+    throw new Error(d || res.statusText || ('Request failed (' + res.status + ')'));
+  }
+  return res.json();
+}
+
+/* ===================== boot ===================== */
+(async function init() {
+  const cfg = await (await fetch('/api/config')).json();
+  sb = supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
+  const { data } = await sb.auth.getSession();
+  session = data.session;
+  sb.auth.onAuthStateChange((_e, s) => { const was = !!session; session = s; if (!!s !== was) route(); });
+  route();
+})();
+
+function route() {
+  $('#auth').classList.toggle('hidden', !!session);
+  $('#auth').classList.toggle('flex', !session);
+  $('#app').classList.toggle('hidden', !session);
+  $('#app').classList.toggle('flex', !!session);
+  if (session) { loadProfile(); loadSessions(); nav('chat'); newChat(); }
+  icons();
+}
+
+/* ===================== auth ===================== */
+$('#auth-toggle').onclick = (e) => {
+  e.preventDefault();
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  const s = authMode === 'signup';
+  $('#name-wrap').classList.toggle('hidden', !s);
+  $('#auth-title').textContent = s ? 'Create your account' : 'Welcome back';
+  $('#auth-sub').textContent = s ? 'Start tracking your health with an AI assistant.' : 'Sign in to your health dashboard.';
+  $('#auth-btn').textContent = s ? 'Create account' : 'Sign in';
+  $('#auth-toggle-text').textContent = s ? 'Already registered?' : 'New here?';
+  $('#auth-toggle').textContent = s ? 'Sign in' : 'Create an account';
+};
+function authMsg(text, ok) {
+  const m = $('#auth-msg'); m.textContent = text; m.classList.remove('hidden');
+  m.className = 'text-sm rounded-lg px-3 py-2 ' + (ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600');
+}
+$('#auth-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const email = $('#auth-email').value.trim(), password = $('#auth-pass').value;
+  $('#auth-btn').disabled = true;
+  try {
+    if (authMode === 'signup') {
+      const { data, error } = await sb.auth.signUp({ email, password, options: { data: { full_name: $('#auth-name').value.trim() } } });
+      if (error) throw error;
+      if (!data.session) authMsg('Account created! Check your email to confirm, then sign in.', true);
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    }
+  } catch (err) { authMsg(err.message, false); }
+  $('#auth-btn').disabled = false;
+};
+const logout = async () => { await sb.auth.signOut(); };
+$('#logout').onclick = logout; $('#logout-m').onclick = logout;
+
+/* ===================== navigation ===================== */
+function nav(view) {
+  $$('.view').forEach(v => v.classList.add('hidden'));
+  const el = $('#view-' + view); el.classList.remove('hidden');
+  if (view === 'chat') el.classList.add('flex');
+  $$('.nav-btn').forEach(b => {
+    const on = b.dataset.nav === view;
+    b.classList.toggle('bg-emerald-50', on); b.classList.toggle('text-emerald-700', on);
+    b.classList.toggle('text-slate-600', !on);
+  });
+  if (view === 'reports') loadReports();
+}
+$$('[data-nav]').forEach(b => b.onclick = () => nav(b.dataset.nav));
+
+/* ===================== profile ===================== */
+const FIELDS = [
+  ['full_name', 'Full name', 'text'], ['phone', 'Phone', 'tel'],
+  ['date_of_birth', 'Date of birth', 'date'], ['gender', 'Gender', 'select:Female,Male,Other'],
+  ['blood_group', 'Blood group', 'select:A+,A-,B+,B-,AB+,AB-,O+,O-'],
+  ['height_cm', 'Height (cm)', 'number'], ['weight_kg', 'Weight (kg)', 'number'],
+  ['allergies', 'Allergies', 'area'], ['conditions', 'Existing conditions', 'area'], ['medications', 'Current medications', 'area'],
+];
+const inputCls = 'mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white';
+
+async function loadProfile() {
+  try {
+    const p = await api('/profile');
+    $('#side-name').textContent = p.full_name || 'Patient';
+    $('#side-email').textContent = p.email || '';
+    $('#avatar').textContent = (p.full_name || p.email || '?')[0].toUpperCase();
+    $('#profile-form').innerHTML = FIELDS.map(([k, label, type]) => {
+      const v = p[k] ?? '';
+      let input;
+      if (type.startsWith('select:')) {
+        input = `<select name="${k}" class="${inputCls}"><option value="">Select…</option>${type.slice(7).split(',').map(o => `<option ${o === v ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+      } else if (type === 'area') {
+        input = `<textarea name="${k}" rows="2" class="${inputCls}" placeholder="None / list here">${esc(v)}</textarea>`;
+      } else {
+        input = `<input name="${k}" type="${type}" step="any" value="${esc(v)}" class="${inputCls}" />`;
+      }
+      return `<div class="${type === 'area' ? 'sm:col-span-2' : ''}"><label class="text-sm font-medium text-slate-600">${label}</label>${input}</div>`;
+    }).join('') + `<div class="sm:col-span-2 flex justify-end"><button class="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-6 py-2.5 shadow-md shadow-emerald-600/20 flex items-center gap-2"><i data-lucide="save" class="h-4 w-4"></i>Save profile</button></div>`;
+    icons();
+  } catch (e) { toast(e.message); }
+}
+$('#profile-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const body = Object.fromEntries(new FormData(e.target).entries());
+  ['height_cm', 'weight_kg'].forEach(k => body[k] = body[k] === '' ? null : Number(body[k]));
+  try { await api('/profile', { method: 'PUT', body }); toast('Profile saved'); loadProfile(); }
+  catch (err) { toast(err.message); }
+};
+
+/* ===================== chat ===================== */
+function bubble(role, text) {
+  const mine = role === 'user';
+  const wrap = document.createElement('div');
+  wrap.className = 'max-w-3xl mx-auto flex gap-3 ' + (mine ? 'flex-row-reverse' : '');
+  wrap.innerHTML = `
+    <div class="h-8 w-8 shrink-0 rounded-full grid place-items-center ${mine ? 'bg-slate-200 text-slate-600' : 'bg-emerald-600 text-white'}">
+      <i data-lucide="${mine ? 'user' : 'bot'}" class="h-4 w-4"></i></div>
+    <div class="rounded-2xl px-4 py-3 text-sm leading-relaxed max-w-[85%] ${mine ? 'bg-emerald-600 text-white rounded-tr-sm' : 'bg-white border border-slate-200 rounded-tl-sm shadow-sm'}">
+      ${mine ? esc(text).replace(/\n/g, '<br>') : md(text)}</div>`;
+  $('#messages').appendChild(wrap); icons();
+  $('#messages').scrollTop = $('#messages').scrollHeight;
+  return wrap;
+}
+function welcome() {
+  $('#messages').innerHTML = '';
+  bubble('assistant', "Hi! I'm your health assistant. Tell me what's going on — symptoms, how long, how severe — and I'll help. When you're done, tap **Generate report** to save a summary your doctor can see.");
+}
+function newChat() { sessionId = null; welcome(); }
+$('#new-chat').onclick = newChat;
+
+async function openSession(id) {
+  sessionId = id; $('#messages').innerHTML = '';
+  try { (await api('/chat/' + id)).forEach(m => bubble(m.role, m.content)); }
+  catch (e) { toast(e.message); }
+}
+async function loadSessions() {
+  try {
+    const list = await api('/sessions');
+    $('#sessions').innerHTML = list.length ? list.map(s => `
+      <button data-sid="${s.session_id}" class="w-full text-left rounded-xl px-3 py-2 hover:bg-emerald-50 text-sm">
+        <p class="truncate font-medium text-slate-700">${esc(s.title || 'Conversation')}</p>
+        <p class="text-xs text-slate-400">${fmtDate(s.updated_at)}</p></button>`).join('')
+      : '<p class="text-xs text-slate-400 px-2">No chats yet.</p>';
+    $$('[data-sid]').forEach(b => b.onclick = () => openSession(b.dataset.sid));
+  } catch {}
+}
+
+$('#chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#chat-form').requestSubmit(); }
+});
+$('#chat-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('#chat-input').value.trim();
+  if (!text || busy) return;
+  busy = true; $('#send-btn').disabled = true;
+  $('#chat-input').value = '';
+  bubble('user', text);
+  const typing = bubble('assistant', '');
+  typing.lastElementChild.innerHTML = '<span class="flex gap-1 py-1"><span class="dot h-2 w-2 rounded-full bg-emerald-500"></span><span class="dot h-2 w-2 rounded-full bg-emerald-500"></span><span class="dot h-2 w-2 rounded-full bg-emerald-500"></span></span>';
+  try {
+    const r = await api('/chat', { method: 'POST', body: { message: text, session_id: sessionId } });
+    const firstMsg = !sessionId; sessionId = r.session_id;
+    typing.lastElementChild.innerHTML = md(r.reply);
+    if (firstMsg) loadSessions();
+  } catch (err) {
+    typing.lastElementChild.innerHTML = `<span class="text-red-600">${esc(err.message)}</span>`;
+  }
+  busy = false; $('#send-btn').disabled = false;
+  $('#messages').scrollTop = $('#messages').scrollHeight;
+};
+
+$('#gen-report').onclick = async () => {
+  if (!sessionId) return toast('Send at least one message first.');
+  const btn = $('#gen-report'); btn.disabled = true; $('#gen-label').textContent = 'Generating…';
+  try {
+    const row = await api('/report', { method: 'POST', body: { session_id: sessionId } });
+    showReport(row);
+    toast('Report saved — your doctor can now see it.');
+  } catch (err) { toast(err.message); }
+  btn.disabled = false; $('#gen-label').textContent = 'Generate report';
+};
+
+/* ===================== reports ===================== */
+const RISK = {
+  low: ['bg-emerald-100 text-emerald-700', 'shield-check'],
+  moderate: ['bg-amber-100 text-amber-700', 'shield-alert'],
+  high: ['bg-red-100 text-red-700', 'siren'],
+};
+const SEV = { mild: 'bg-emerald-50 text-emerald-700', moderate: 'bg-amber-50 text-amber-700', severe: 'bg-red-50 text-red-700' };
+
+function section(icon, title, body) {
+  return `<div class="mt-6"><h4 class="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-3"><i data-lucide="${icon}" class="h-4 w-4 text-emerald-600"></i>${title}</h4>${body}</div>`;
+}
+function bullets(arr, dot = 'bg-emerald-500') {
+  return `<ul class="space-y-2">${arr.map(x => `<li class="flex gap-3 text-sm text-slate-600"><span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${dot}"></span>${esc(x)}</li>`).join('')}</ul>`;
+}
+function renderReport(r) {
+  const d = r.data || {}, p = d.patient || {};
+  const [riskCls, riskIcon] = RISK[d.risk_level] || RISK.low;
+  const kv = [['Name', p.name], ['Age', p.age], ['Gender', p.gender], ['Blood group', p.blood_group], ['Allergies', p.allergies], ['Conditions', p.conditions], ['Medications', p.medications]]
+    .map(([k, v]) => `<div class="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2"><p class="text-[11px] uppercase tracking-wide text-slate-400">${k}</p><p class="text-sm font-medium text-slate-700">${esc(v || '—')}</p></div>`).join('');
+  let html = `
+    <div class="flex items-start justify-between gap-4">
+      <div><h3 class="text-xl font-bold text-slate-800">${esc(d.title || 'Health report')}</h3>
+      <p class="text-xs text-slate-400 mt-1">${fmtDate(r.created_at)}</p></div>
+      <span class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${riskCls}"><i data-lucide="${riskIcon}" class="h-3.5 w-3.5"></i>${esc((d.risk_level || 'low').toUpperCase())} RISK</span>
+    </div>
+    ${d.red_flags?.length ? `
+    <div class="mt-4 rounded-2xl border-2 border-red-200 bg-red-50 p-4">
+      <p class="flex items-center gap-2 text-sm font-bold text-red-700 mb-3"><i data-lucide="triangle-alert" class="h-4 w-4"></i>RED FLAGS · Current problems needing attention</p>
+      <ul class="space-y-2">${d.red_flags.map(x => `<li class="flex gap-3 text-sm font-medium text-red-800"><span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-500"></span>${esc(x)}</li>`).join('')}</ul>
+    </div>` : ''}
+    <p class="mt-4 text-sm text-slate-600 leading-relaxed rounded-2xl bg-emerald-50/60 border border-emerald-100 p-4">${esc(d.summary || '')}</p>
+    ${section('user-round', 'Patient', `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">${kv}</div>`)}`;
+  if (d.chief_complaint) html += section('stethoscope', 'Chief complaint', `<p class="text-sm text-slate-600">${esc(d.chief_complaint)}</p>`);
+  if (d.symptoms?.length) html += section('activity', 'Symptoms', `<div class="grid gap-2">${d.symptoms.map(s => `
+    <div class="rounded-xl border border-slate-200 p-3 flex items-start justify-between gap-3">
+      <div><p class="text-sm font-medium text-slate-800">${esc(s.name)}</p>
+      <p class="text-xs text-slate-500 mt-0.5">${[s.duration, s.notes].filter(Boolean).map(esc).join(' · ')}</p></div>
+      ${s.severity ? `<span class="text-xs font-medium rounded-full px-2.5 py-1 ${SEV[s.severity] || ''}">${esc(s.severity)}</span>` : ''}
+    </div>`).join('')}</div>`);
+  if (d.possible_considerations?.length) html += section('brain', 'Possible considerations', bullets(d.possible_considerations));
+  if (d.recommendations?.length) html += section('clipboard-check', 'Recommendations', bullets(d.recommendations));
+  if (d.follow_up) html += section('calendar-clock', 'Follow-up', `<p class="text-sm text-slate-600">${esc(d.follow_up)}</p>`);
+  html += `<p class="mt-8 text-xs text-slate-400 border-t border-slate-100 pt-4 flex gap-2"><i data-lucide="info" class="h-4 w-4 shrink-0"></i>${esc(d.disclaimer || 'AI-generated summary, not a medical diagnosis.')}</p>`;
+  return html;
+}
+function showReport(row) {
+  $('#modal-body').innerHTML = renderReport(row);
+  $('#modal').classList.remove('hidden'); $('#modal').classList.add('flex'); icons();
+}
+const closeModal = () => { $('#modal').classList.add('hidden'); $('#modal').classList.remove('flex'); };
+$('#modal-close').onclick = closeModal;
+$('#modal').onclick = (e) => { if (e.target.id === 'modal') closeModal(); };
+
+async function loadReports() {
+  try {
+    const list = await api('/reports');
+    window._reports = list;
+    $('#reports-list').innerHTML = list.length ? list.map((r, i) => {
+      const [cls, ic] = RISK[r.data?.risk_level] || RISK.low;
+      return `<button data-ri="${i}" class="text-left bg-white rounded-2xl border border-slate-200 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100 transition p-5">
+        <div class="flex items-center justify-between"><div class="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-600 grid place-items-center"><i data-lucide="file-heart" class="h-5 w-5"></i></div>
+        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${cls}"><i data-lucide="${ic}" class="h-3 w-3"></i>${esc(r.data?.risk_level || 'low')}</span></div>
+        <p class="mt-3 font-semibold text-slate-800">${esc(r.data?.title || 'Health report')}</p>
+        <p class="text-sm text-slate-500 mt-1 line-clamp-2">${esc(r.data?.summary || '')}</p>
+        <p class="text-xs text-slate-400 mt-3">${fmtDate(r.created_at)}</p></button>`;
+    }).join('') : '<div class="sm:col-span-2 text-center text-slate-400 py-16"><i data-lucide="file-x" class="h-10 w-10 mx-auto mb-3"></i>No reports yet. Chat with the assistant, then tap “Generate report”.</div>';
+    $$('[data-ri]').forEach(b => b.onclick = () => showReport(window._reports[b.dataset.ri]));
+    icons();
+  } catch (e) { toast(e.message); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+{% block title %}Diet - NAMASTE{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <div
+        class="flex items-center space-x-2 text-xs font-semibold text-emerald-700 bg-emerald-100/60 px-3 py-1 rounded-full w-fit mb-2 border border-emerald-200"
+      >
+        <i data-lucide="apple" class="w-3.5 h-3.5"></i>
+        <span>Dietetics & Viruddha Ahara Engine</span>
+      </div>
+      <h1 class="text-2xl font-bold text-slate-900 tracking-tight">
+        Food Nutrition & Safety Checker
+      </h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Analyze nutritional composition and check food safety against specific
+        clinical conditions and Ayurvedic Prakriti.
+      </p>
+    </div>
+
+    <div class="flex items-center space-x-2">
+      <span
+        class="text-xs font-medium text-slate-500 bg-white px-3 py-2 rounded-xl border border-emerald-900/10 shadow-xs"
+      >
+        Aharatattva Engine: <strong class="text-emerald-800">Active</strong>
+      </span>
+    </div>
+  </div>
+
+  <!-- Food & Health Issue Search Control Card (POST Form) -->
+  <div
+    class="bg-white rounded-2xl border border-emerald-900/10 p-6 shadow-xs space-y-4"
+  >
+    <h2 class="text-base font-semibold text-slate-900 flex items-center gap-2">
+      <i data-lucide="shield-alert" class="w-4 h-4 text-emerald-600"></i>
+      Dietary Compatibility Assessment
+    </h2>
+
+    <form
+      method="POST"
+      action="{{ url_for('diet_post') }}"
+      class="grid grid-cols-1 md:grid-cols-12 gap-4 relative"
+    >
+      <!-- Food Item Dropdown Selection -->
+      <div class="md:col-span-5">
+        <label class="block text-xs font-medium text-slate-700 mb-1"
+          >Select Food Item (Ahara)</label
+        >
+        <div class="relative">
+          <i
+            data-lucide="utensils"
+            class="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none"
+          ></i>
+          <select
+            name="food_id"
+            required
+            class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl pl-9 pr-8 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer appearance-none"
+          >
+            <option value="" disabled {% if not selected_food %}selected{% endif %}>
+              Select a food item (Ahara)...
+            </option>
+            {% for food in foods %}
+            <option
+              value="{{ food.id }}"
+              {% if selected_food and selected_food.id == food.id %}selected{% endif %}
+            >
+              {{ food.name }}
+            </option>
+            {% endfor %}
+          </select>
+          <i
+            data-lucide="chevron-down"
+            class="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none"
+          ></i>
+        </div>
+      </div>
+
+      <!-- Health Condition Dropdown Selection -->
+      <div class="md:col-span-5">
+        <label class="block text-xs font-medium text-slate-700 mb-1"
+          >Select Patient Health Issue / Disease</label
+        >
+        <div class="relative">
+          <i
+            data-lucide="activity"
+            class="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none"
+          ></i>
+          <select
+            name="disease_id"
+            required
+            class="w-full bg-[#f6f9f6] border border-emerald-900/10 rounded-xl pl-9 pr-8 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer appearance-none"
+          >
+            <option value="" disabled {% if not selected_disease %}selected{% endif %}>
+              Select health condition...
+            </option>
+            {% for disease in diseases %}
+            <option
+              value="{{ disease.id }}"
+              {% if selected_disease and selected_disease.id == disease.id %}selected{% endif %}
+            >
+              {{ disease.name }} {% if disease.icd11_code %}({{
+              disease.icd11_code }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <i
+            data-lucide="chevron-down"
+            class="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none"
+          ></i>
+        </div>
+      </div>
+
+      <!-- Analyze Action Button -->
+      <div class="md:col-span-2 flex items-end">
+        <button
+          type="submit"
+          class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-medium text-xs py-3 px-4 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          Check Safety
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Results Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+    <!-- Safety Recommendation Alert Panel (7 Cols) -->
+    <div class="lg:col-span-7 flex flex-col">
+      <div
+        class="bg-white rounded-2xl border border-emerald-900/10 p-6 shadow-xs space-y-5 h-full flex flex-col justify-between"
+      >
+        <!-- Header Status Badge -->
+        <div
+          class="flex items-center justify-between border-b border-emerald-900/5 pb-4"
+        >
+          <div class="flex items-center space-x-2">
+            <i
+              data-lucide="info"
+              class="w-5 h-5 {% if assessment and assessment.status == 'Unsafe' %}text-rose-500{% elif assessment %}text-emerald-600{% else %}text-amber-500{% endif %}"
+            ></i>
+            <h3
+              class="font-bold text-slate-900 text-base"
+            >
+              Safety Assessment Result
+            </h3>
+          </div>
+          <span
+            class="px-3 py-1 rounded-full text-xs font-bold {% if assessment and assessment.status == 'Unsafe' %}bg-rose-100 text-rose-800 border border-rose-200{% elif assessment %}bg-emerald-100 text-emerald-800 border border-emerald-200{% else %}bg-amber-100 text-amber-800 border border-amber-200{% endif %}"
+          >
+            {{ assessment.status | upper if assessment else 'SELECT A FOOD ITEM' }}
+          </span>
+        </div>
+
+        <!-- Clinical Explanation -->
+        <div class="space-y-3 flex-1 flex flex-col justify-center">
+          <div
+            class="bg-[#f6f9f6] p-4 rounded-xl border border-emerald-900/10 space-y-2"
+          >
+            <p
+              class="text-xs font-semibold text-slate-500 uppercase tracking-wider"
+            >
+              Clinical & Ayurvedic Rationale
+            </p>
+            <p
+              class="text-sm text-slate-700 leading-relaxed"
+            >
+              {% if assessment %}
+                {{ assessment.details }}
+              {% else %}
+                Select a food item and health condition above, then click 'Check Safety' to view compatibility details.
+              {% endif %}
+            </p>
+          </div>
+
+          <!-- Recommendation Bullet Points -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+            <div
+              class="p-3 bg-emerald-50/50 rounded-xl border border-emerald-200/60 flex items-start gap-2"
+            >
+              <i
+                data-lucide="check-circle-2"
+                class="w-4 h-4 text-emerald-600 mt-0.5 shrink-0"
+              ></i>
+              <div>
+                <span class="font-bold text-slate-800 block"
+                  >Selected Food</span
+                >
+                <span class="text-slate-600"
+                  >{{ selected_food.name if selected_food else 'None selected' }}</span
+                >
+              </div>
+            </div>
+
+            <div
+              class="p-3 bg-amber-50/50 rounded-xl border border-amber-200/60 flex items-start gap-2"
+            >
+              <i
+                data-lucide="alert-triangle"
+                class="w-4 h-4 text-amber-600 mt-0.5 shrink-0"
+              ></i>
+              <div>
+                <span class="font-bold text-slate-800 block"
+                  >Target Condition</span
+                >
+                <span class="text-slate-600"
+                  >{{ selected_disease.name if selected_disease else 'None selected' }}</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<!-- Nutritional Profile Panel (5 Cols) -->
+    <div class="lg:col-span-5 flex flex-col">
+      <div
+        class="bg-white rounded-2xl border border-emerald-900/10 p-6 shadow-xs flex flex-col justify-between h-full space-y-4"
+      >
+        <div
+          class="flex items-center justify-between border-b border-emerald-900/5 pb-3"
+        >
+          <h3
+            class="font-semibold text-slate-900 flex items-center gap-2 text-sm"
+          >
+            <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-600"></i>
+            Nutritional Profile (per 100g)
+          </h3>
+          <span
+            class="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200"
+          >
+            {{ selected_food.calories_kcal if selected_food and selected_food.calories_kcal else 0 }} kcal
+          </span>
+        </div>
+
+        <!-- Metric Display Bars -->
+        <div class="space-y-3 my-auto py-2">
+          <div>
+            <div class="flex justify-between text-xs font-medium text-slate-600 mb-1">
+              <span>Protein</span>
+              <span>{{ selected_food.protein_g if selected_food and selected_food.protein_g else 0 }}g</span>
+            </div>
+            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div class="bg-emerald-600 h-full rounded-full" style="width: {% if selected_food and selected_food.protein_g %}{{ [selected_food.protein_g | float * 4, 100]|min }}{% else %}0{% endif %}%"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-medium text-slate-600 mb-1">
+              <span>Carbohydrates</span>
+              <span>{{ selected_food.carbs_g if selected_food and selected_food.carbs_g else 0 }}g</span>
+            </div>
+            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div class="bg-blue-600 h-full rounded-full" style="width: {% if selected_food and selected_food.carbs_g %}{{ [selected_food.carbs_g | float * 2, 100]|min }}{% else %}0{% endif %}%"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-medium text-slate-600 mb-1">
+              <span>Fats</span>
+              <span>{{ selected_food.fat_g if selected_food and selected_food.fat_g else 0 }}g</span>
+            </div>
+            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div class="bg-amber-500 h-full rounded-full" style="width: {% if selected_food and selected_food.fat_g %}{{ [selected_food.fat_g | float * 5, 100]|min }}{% else %}0{% endif %}%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vitamins & Minerals Detailed List -->
+        <div class="pt-2 border-t border-emerald-900/5 space-y-2">
+          <p class="text-xs font-semibold text-slate-500">
+            Key Vitamins & Minerals
+          </p>
+          <div class="grid grid-cols-2 gap-2.5 text-xs">
+            <div
+              class="bg-[#f6f9f6] p-2.5 rounded-xl border border-emerald-900/5 flex justify-between items-center"
+            >
+              <span class="text-slate-500 font-medium">Calcium</span>
+              <span class="font-semibold text-slate-800"
+                >{{ selected_food.calcium_mg if selected_food and selected_food.calcium_mg else 0 }} mg</span
+              >
+            </div>
+            <div
+              class="bg-[#f6f9f6] p-2.5 rounded-xl border border-emerald-900/5 flex justify-between items-center"
+            >
+              <span class="text-slate-500 font-medium">Vitamin B12</span>
+              <span class="font-semibold text-slate-800"
+                >{{ selected_food.vitamin_b12_mcg if selected_food and selected_food.vitamin_b12_mcg else 0 }} µg</span
+              >
+            </div>
+            <div
+              class="bg-[#f6f9f6] p-2.5 rounded-xl border border-emerald-900/5 flex justify-between items-center"
+            >
+              <span class="text-slate-500 font-medium">Phosphorus</span>
+              <span class="font-semibold text-slate-800"
+                >{{ selected_food.phosphorus_mg if selected_food and selected_food.phosphorus_mg else 0 }} mg</span
+              >
+            </div>
+            <div
+              class="bg-[#f6f9f6] p-2.5 rounded-xl border border-emerald-900/5 flex justify-between items-center"
+            >
+              <span class="text-slate-500 font-medium">Probiotics</span>
+              <span class="font-semibold text-slate-800"
+                >{{ selected_food.probiotics if selected_food and selected_food.probiotics else 'None' }}</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
