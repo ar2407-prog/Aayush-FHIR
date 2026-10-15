@@ -69,6 +69,7 @@
     <nav class="p-4 space-y-1 flex-1">
       <button data-nav="chat" class="nav-btn w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium"><i data-lucide="message-circle-heart" class="h-5 w-5"></i>Health Chat</button>
       <button data-nav="reports" class="nav-btn w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium"><i data-lucide="file-heart" class="h-5 w-5"></i>My Reports</button>
+      <button data-nav="hospitals" class="nav-btn w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium"><i data-lucide="building-2" class="h-5 w-5"></i>Hospitals</button>
       <button data-nav="profile" class="nav-btn w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium"><i data-lucide="user-round" class="h-5 w-5"></i>My Profile</button>
     </nav>
     <div class="p-4 border-t border-slate-100">
@@ -91,6 +92,7 @@
       <div class="flex gap-1">
         <button data-nav="chat" class="nav-btn p-2 rounded-lg"><i data-lucide="message-circle-heart" class="h-5 w-5"></i></button>
         <button data-nav="reports" class="nav-btn p-2 rounded-lg"><i data-lucide="file-heart" class="h-5 w-5"></i></button>
+        <button data-nav="hospitals" class="nav-btn p-2 rounded-lg"><i data-lucide="building-2" class="h-5 w-5"></i></button>
         <button data-nav="profile" class="nav-btn p-2 rounded-lg"><i data-lucide="user-round" class="h-5 w-5"></i></button>
         <button id="logout-m" class="p-2 rounded-lg text-slate-500"><i data-lucide="log-out" class="h-5 w-5"></i></button>
       </div>
@@ -132,6 +134,41 @@
         <h2 class="text-2xl font-bold">My reports</h2>
         <p class="text-slate-500 text-sm mt-1">Reports generated from your chats. Your doctor can view these.</p>
         <div id="reports-list" class="mt-6 grid gap-4 sm:grid-cols-2"></div>
+      </div>
+    </div>
+
+    <!-- HOSPITALS VIEW (front-end only, sample data) -->
+    <div id="view-hospitals" class="view hidden flex-1 overflow-y-auto scroll-thin p-6 md:p-10">
+      <div class="max-w-6xl mx-auto">
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-bold">Hospitals in Chennai</h2>
+            <p class="text-slate-500 text-sm mt-1">Find a nearby hospital and see how many beds are free right now.</p>
+          </div>
+          <button id="hosp-refresh" class="self-start sm:self-auto flex items-center gap-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-4 py-2 text-sm font-medium">
+            <i data-lucide="refresh-cw" class="h-4 w-4"></i>Refresh availability
+          </button>
+        </div>
+
+        <!-- summary -->
+        <div id="hosp-stats" class="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+
+        <!-- toolbar -->
+        <div class="mt-5 bg-white rounded-2xl border border-slate-200 p-3 flex flex-col lg:flex-row gap-3 lg:items-center">
+          <div class="relative flex-1">
+            <i data-lucide="search" class="h-4 w-4 text-slate-400 absolute left-3.5 top-3"></i>
+            <input id="hosp-search" autocomplete="off" placeholder="Search by hospital, area or speciality (e.g. Adyar, cardiology)…" class="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white" />
+          </div>
+          <div id="hosp-types" class="flex flex-wrap gap-1.5"></div>
+          <select id="hosp-sort" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="beds">Most beds available</option>
+            <option value="icu">Most ICU beds</option>
+            <option value="name">Name (A–Z)</option>
+          </select>
+        </div>
+
+        <div id="hosp-grid" class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"></div>
+        <p class="mt-6 text-xs text-slate-400 flex gap-2"><i data-lucide="info" class="h-4 w-4 shrink-0"></i>Demo data: bed numbers are randomly generated in your browser and are not live hospital figures. Always call the hospital to confirm availability. In an emergency, dial 108.</p>
       </div>
     </div>
 
@@ -274,8 +311,132 @@ function nav(view) {
     b.classList.toggle('text-slate-600', !on);
   });
   if (view === 'reports') loadReports();
+  if (view === 'hospitals') renderHospitals();
 }
 $$('[data-nav]').forEach(b => b.onclick = () => nav(b.dataset.nav));
+
+/* ===================== hospitals (front-end only demo) ===================== */
+// n = name, a = area, t = type, s = specialities, b = approx. total beds
+const HOSPITALS = [
+  { n: 'Rajiv Gandhi Government General Hospital', a: 'Park Town', t: 'Government', s: ['Emergency', 'Trauma', 'Cardiology', 'Neurology', 'Nephrology'], b: 3000 },
+  { n: 'Government Stanley Medical College Hospital', a: 'Old Washermanpet', t: 'Government', s: ['Emergency', 'General Surgery', 'Paediatrics', 'Orthopaedics'], b: 1800 },
+  { n: 'Government Royapettah Hospital', a: 'Royapettah', t: 'Government', s: ['Emergency', 'General Medicine', 'Orthopaedics', 'Obstetrics'], b: 1200 },
+  { n: 'Government Kilpauk Medical College Hospital', a: 'Kilpauk', t: 'Government', s: ['Emergency', 'Oncology', 'Burns', 'General Medicine'], b: 1100 },
+  { n: 'Govt. Omandurar Multi Super Speciality Hospital', a: 'Chepauk', t: 'Government', s: ['Cardiology', 'Neurosurgery', 'Gastroenterology', 'Emergency'], b: 700 },
+  { n: 'Institute of Child Health & Hospital for Children', a: 'Egmore', t: 'Government', s: ['Paediatrics', 'Neonatology', 'Paediatric Surgery'], b: 750 },
+  { n: 'Kasturba Gandhi Hospital for Women & Children', a: 'Triplicane', t: 'Government', s: ['Obstetrics', 'Gynaecology', 'Neonatology'], b: 500 },
+  { n: 'Cancer Institute (WIA)', a: 'Adyar', t: 'Trust', s: ['Oncology', 'Radiotherapy', 'Surgical Oncology'], b: 600 },
+  { n: 'Sankara Nethralaya', a: 'Nungambakkam', t: 'Trust', s: ['Ophthalmology', 'Retina', 'Cornea'], b: 350 },
+  { n: 'Kanchi Kamakoti CHILDS Trust Hospital', a: 'Nungambakkam', t: 'Trust', s: ['Paediatrics', 'Neonatology', 'Paediatric Cardiology'], b: 250 },
+  { n: 'Madras Medical Mission', a: 'Mogappair', t: 'Trust', s: ['Cardiology', 'Cardiac Surgery', 'Transplant'], b: 400 },
+  { n: 'Apollo Hospitals', a: 'Greams Road', t: 'Private', s: ['Cardiology', 'Oncology', 'Transplant', 'Neurology', 'Emergency'], b: 700 },
+  { n: 'MIOT International', a: 'Manapakkam', t: 'Private', s: ['Orthopaedics', 'Joint Replacement', 'Nephrology', 'Cardiology'], b: 1000 },
+  { n: 'Gleneagles Global Health City', a: 'Perumbakkam', t: 'Private', s: ['Transplant', 'Gastroenterology', 'Cardiology', 'Emergency'], b: 1000 },
+  { n: 'Fortis Malar Hospital', a: 'Adyar', t: 'Private', s: ['Cardiology', 'Neurology', 'Critical Care', 'Emergency'], b: 180 },
+  { n: 'Kauvery Hospital', a: 'Alwarpet', t: 'Private', s: ['Cardiology', 'Neurology', 'Gastroenterology', 'Emergency'], b: 350 },
+  { n: 'Sri Ramachandra Medical Centre', a: 'Porur', t: 'Private', s: ['Multi-speciality', 'Paediatrics', 'Oncology', 'Emergency'], b: 1800 },
+  { n: 'SRM Institutes for Medical Science (SIMS)', a: 'Vadapalani', t: 'Private', s: ['Cardiology', 'Gastroenterology', 'Nephrology', 'Emergency'], b: 350 },
+  { n: 'Vijaya Hospital', a: 'Vadapalani', t: 'Private', s: ['General Medicine', 'Surgery', 'Obstetrics', 'Emergency'], b: 300 },
+  { n: 'Billroth Hospitals', a: 'Shenoy Nagar', t: 'Private', s: ['General Surgery', 'Orthopaedics', 'Cardiology', 'Emergency'], b: 250 },
+  { n: 'Sundaram Medical Foundation', a: 'Anna Nagar', t: 'Private', s: ['General Medicine', 'Paediatrics', 'Cardiology'], b: 200 },
+  { n: 'Dr. Rela Institute & Medical Centre', a: 'Chromepet', t: 'Private', s: ['Liver Transplant', 'Hepatology', 'Critical Care', 'Emergency'], b: 450 },
+  { n: 'Dr. Mehta’s Hospitals', a: 'Chetpet', t: 'Private', s: ['General Medicine', 'Surgery', 'Neurology'], b: 200 },
+  { n: 'Chettinad Super Speciality Hospital', a: 'Kelambakkam', t: 'Private', s: ['Cardiology', 'Neurology', 'Orthopaedics', 'Emergency'], b: 650 },
+  { n: 'Apollo Children’s Hospital', a: 'Thousand Lights', t: 'Private', s: ['Paediatrics', 'Neonatology', 'Paediatric Surgery'], b: 150 },
+];
+const H_TYPE = {
+  Government: 'bg-slate-100 text-slate-700 border-slate-200',
+  Private: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Trust: 'bg-teal-50 text-teal-700 border-teal-200',
+};
+const hosp = { q: '', type: 'All', sort: 'beds', ready: false };
+const randInt = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+
+function randomizeBeds() {
+  HOSPITALS.forEach(h => {
+    h.icu = Math.max(6, Math.round(h.b * 0.1));
+    h.free = Math.max(1, Math.round(h.b * (randInt(3, 42) / 100)));   // 3%–42% of beds free
+    h.icuFree = randInt(0, Math.max(1, Math.round(h.icu * 0.5)));
+  });
+}
+function hospStatus(h) {
+  const p = h.free / h.b;
+  if (p >= 0.25) return { label: 'Beds available', dot: 'bg-emerald-500', bar: 'bg-emerald-500', txt: 'text-emerald-700' };
+  if (p >= 0.1)  return { label: 'Filling up',     dot: 'bg-amber-500',   bar: 'bg-amber-500',   txt: 'text-amber-700' };
+  return           { label: 'Almost full',          dot: 'bg-red-500',     bar: 'bg-red-500',     txt: 'text-red-700' };
+}
+function hospCard(h) {
+  const st = hospStatus(h), pct = Math.max(3, Math.round((h.free / h.b) * 100));
+  const maps = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(h.n + ' ' + h.a + ' Chennai');
+  return `
+  <div class="group flex flex-col bg-white rounded-2xl border border-slate-200 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100 transition p-5">
+    <div class="flex items-start justify-between gap-3">
+      <div class="h-10 w-10 shrink-0 rounded-xl bg-emerald-50 text-emerald-600 grid place-items-center"><i data-lucide="hospital" class="h-5 w-5"></i></div>
+      <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${H_TYPE[h.t]}">${esc(h.t)}</span>
+    </div>
+    <h3 class="mt-3 font-semibold text-slate-800 leading-snug">${esc(h.n)}</h3>
+    <p class="text-xs text-slate-500 mt-1 flex items-center gap-1"><i data-lucide="map-pin" class="h-3.5 w-3.5 text-emerald-600"></i>${esc(h.a)}, Chennai</p>
+
+    <div class="mt-4 rounded-xl bg-slate-50 border border-slate-100 p-3">
+      <div class="flex items-end justify-between">
+        <div class="flex items-center gap-2"><i data-lucide="bed-double" class="h-4 w-4 text-emerald-600"></i>
+          <span class="text-2xl font-bold text-slate-800 leading-none">${h.free}</span>
+          <span class="text-xs text-slate-400">of ${h.b} beds free</span></div>
+        <span class="flex items-center gap-1.5 text-[11px] font-semibold ${st.txt}"><span class="h-2 w-2 rounded-full ${st.dot}"></span>${st.label}</span>
+      </div>
+      <div class="mt-2.5 h-1.5 rounded-full bg-slate-200 overflow-hidden"><div class="h-full rounded-full ${st.bar}" style="width:${pct}%"></div></div>
+      <div class="mt-2.5 flex items-center justify-between text-xs">
+        <span class="flex items-center gap-1.5 text-slate-600"><i data-lucide="heart-pulse" class="h-3.5 w-3.5 text-red-500"></i>ICU beds free: <strong class="text-slate-800">${h.icuFree}</strong> / ${h.icu}</span>
+        <span class="flex items-center gap-1 text-emerald-700 font-medium"><i data-lucide="siren" class="h-3.5 w-3.5"></i>24×7 ER</span>
+      </div>
+    </div>
+
+    <div class="mt-4 flex flex-wrap gap-1.5">
+      ${h.s.slice(0, 3).map(s => `<span class="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-0.5 text-[11px]">${esc(s)}</span>`).join('')}
+      ${h.s.length > 3 ? `<span class="rounded-full bg-slate-50 text-slate-500 border border-slate-200 px-2.5 py-0.5 text-[11px]" title="${esc(h.s.slice(3).join(', '))}">+${h.s.length - 3} more</span>` : ''}
+    </div>
+
+    <a href="${maps}" target="_blank" rel="noopener" class="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2.5 shadow-md shadow-emerald-600/20 transition">
+      <i data-lucide="navigation" class="h-4 w-4"></i>Get directions</a>
+  </div>`;
+}
+function renderHospitals() {
+  if (!hosp.ready) {
+    randomizeBeds(); hosp.ready = true;
+    $('#hosp-search').oninput = (e) => { hosp.q = e.target.value; renderHospitals(); };
+    $('#hosp-sort').onchange = (e) => { hosp.sort = e.target.value; renderHospitals(); };
+    $('#hosp-refresh').onclick = () => {
+      randomizeBeds(); renderHospitals(); toast('Bed availability refreshed');
+    };
+  }
+  // type filter chips
+  $('#hosp-types').innerHTML = ['All', 'Government', 'Private', 'Trust'].map(t => `
+    <button data-htype="${t}" class="rounded-lg px-3 py-2 text-xs font-medium border transition ${hosp.type === t ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-emerald-50'}">${t}</button>`).join('');
+  $$('[data-htype]').forEach(b => b.onclick = () => { hosp.type = b.dataset.htype; renderHospitals(); });
+
+  // summary
+  const sum = (k) => HOSPITALS.reduce((a, h) => a + h[k], 0);
+  const stat = (icon, label, val) => `<div class="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
+      <div class="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 grid place-items-center"><i data-lucide="${icon}" class="h-5 w-5"></i></div>
+      <div><p class="text-xl font-bold text-slate-800 leading-tight">${val}</p><p class="text-xs text-slate-400">${label}</p></div></div>`;
+  $('#hosp-stats').innerHTML =
+    stat('building-2', 'Hospitals listed', HOSPITALS.length) +
+    stat('bed-double', 'Beds free (all)', sum('free').toLocaleString()) +
+    stat('heart-pulse', 'ICU beds free', sum('icuFree').toLocaleString()) +
+    stat('shield-check', 'With beds available', HOSPITALS.filter(h => h.free / h.b >= 0.25).length);
+
+  // filter + sort
+  const q = hosp.q.trim().toLowerCase();
+  let list = HOSPITALS.filter(h =>
+    (hosp.type === 'All' || h.t === hosp.type) &&
+    (!q || (h.n + ' ' + h.a + ' ' + h.t + ' ' + h.s.join(' ')).toLowerCase().includes(q)));
+  list.sort((a, b) => hosp.sort === 'name' ? a.n.localeCompare(b.n)
+    : hosp.sort === 'icu' ? b.icuFree - a.icuFree : b.free - a.free);
+
+  $('#hosp-grid').innerHTML = list.length ? list.map(hospCard).join('')
+    : '<div class="sm:col-span-2 xl:col-span-3 text-center text-slate-400 py-16"><i data-lucide="search-x" class="h-10 w-10 mx-auto mb-3"></i>No hospitals match your search.</div>';
+  icons();
+}
 
 /* ===================== profile ===================== */
 const FIELDS = [
